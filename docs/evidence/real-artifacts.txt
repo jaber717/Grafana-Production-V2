@@ -35,4 +35,4 @@ grafana-clickhouse-datasource-4.22.0.zip: grafana-clickhouse-datasource/plugin.j
 $ bundled Node.js
 v20.20.2
 
-$ tools/build-offline-bundle.sh --from-bundle grafana-platform-1.0.1-rhel9-offline.tar.gz (network disabled)
+# tools/build-offline-bundle.sh --from-bundle with these artifacts (network disabled, pins unmodified): first assertion of simulation-real-artifacts.txt
