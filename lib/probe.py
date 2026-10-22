@@ -48,9 +48,8 @@ def zabbix(url, user):
         return f"ERR Zabbix API not reachable at {url}: {e}"
     maj, mi = (int(x) for x in ver.split(".")[:2])
     header = maj > 6 or (maj == 6 and mi >= 4)
-    params = {"username": user, "password": os.environ.get("PROBE_PASSWORD", "")}
-    if not (maj > 5 or (maj == 5 and mi >= 4)):
-        params = {"user": user, "password": params["password"]}
+    pw = os.environ.get("PROBE_PASSWORD", "")
+    params = {"username": user, "password": pw} if (maj > 5 or (maj == 5 and mi >= 4)) else {"user": user, "password": pw}
     try:
         sid = rpc(op, url, "user.login", params)
     except Exception as e:  # noqa: BLE001
