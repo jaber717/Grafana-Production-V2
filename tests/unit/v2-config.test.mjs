@@ -122,13 +122,15 @@ test('CLICKHOUSE_ENABLED=yes (default): both datasources, all dashboards, full p
   assert.equal(pl.state, 'ok'); assert.equal(pl.playlist.items.length, 5);
 });
 
-test('NOC dashboards: a missing OR partial item map is refused, or deferred with ALLOW_NOC_WITHOUT_ITEM_MAP=yes - never deployed half-mapped', () => {
+test('NOC dashboards: a missing OR partial item map is deferred by default (refused only with ALLOW_NOC_WITHOUT_ITEM_MAP=no) - never deployed half-mapped', () => {
   const partial = { 51128: '1' };
   for (const itemMap of [null, partial]) {
-    const refused = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
+    const refused = effectiveDashboards({ env: ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'no' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
     assert.ok(refused.every((d) => d.state === 'refused'), JSON.stringify(refused.map((d) => d.state)));
     const deferred = effectiveDashboards({ env: ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'YES' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
     assert.ok(deferred.every((d) => d.state === 'skipped' && /deferred/.test(d.reason)));
+    const byDefault = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
+    assert.ok(byDefault.every((d) => d.state === 'skipped'), 'deferral is the default');
   }
   const ok = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap: fullMap }).filter((d) => NOC.includes(d.dashboard.uid));
   for (const d of ok) assert.ok(!JSON.stringify(d.dashboard).match(/"itemids":"(5\d{4})/), 'no LAB id left in a deployed NOC dashboard');
@@ -140,4 +142,15 @@ test('datasourceRefs ignores expressions and finds the real datasources of each 
     assert.ok(!refs.includes('__expr__'));
     assert.deepEqual(refs, [d.folderDir === 'netflow' ? 'netflow-clickhouse' : 'zabbix-lab'], d.file);
   }
+});
+
+test('ZABBIX_ENABLED=no: Grafana without Zabbix - no Zabbix datasource, NOC dashboards deferred, NetFlow unaffected', () => {
+  const env = ENV({ ZABBIX_ENABLED: 'no', ZABBIX_URL: '', ZABBIX_USER: '' });
+  assert.deepEqual(renderDatasources(env).map((d) => d.uid), ['netflow-clickhouse']);
+  const st = Object.fromEntries(effectiveDashboards({ env, envName: 'production', itemMap: fullMap }).map((d) => [d.dashboard.uid, d]));
+  for (const u of NOC) { assert.equal(st[u].state, 'skipped'); assert.match(st[u].reason, /ZABBIX_ENABLED=no/); }
+  for (const u of NETFLOW) assert.equal(st[u].state, 'ok');
+  const none = ENV({ ZABBIX_ENABLED: 'no', CLICKHOUSE_ENABLED: 'no', ZABBIX_URL: '', CLICKHOUSE_HOST: '' });
+  assert.deepEqual(renderDatasources(none), [], 'base Grafana only');
+  assert.equal(py('ZABBIX_ENABLED=off\n').values.ZABBIX_ENABLED, 'no');
 });

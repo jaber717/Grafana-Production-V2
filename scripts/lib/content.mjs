@@ -3,7 +3,7 @@
 //   --item-map <file>  (or ZABBIX_ITEM_MAP_FILE in the env file)   {"<LAB zabbix item id>": "<item id on this Zabbix>"}
 import { join } from 'node:path';
 import { ROOT, repoDashboards } from './grafana.mjs';
-import { loadEnvFile, renderDatasources, loadItemMap, applyItemMap, itemIds, flag, deferredDatasources, datasourceRefs } from './envcfg.mjs';
+import { loadEnvFile, renderDatasources, loadItemMap, applyItemMap, itemIds, flag, deferredDatasources, datasourceRefs, deferReason } from './envcfg.mjs';
 import { readJson } from './grafana.mjs';
 
 export function loadContext(args) {
@@ -20,10 +20,10 @@ export function loadContext(args) {
  *  'refused' = would be broken and was not deferred (install stops; the reason says what to do). */
 export function effectiveDashboards(ctx) {
   const off = new Set(deferredDatasources(ctx.env));
-  const allowNoc = flag(ctx.env, 'ALLOW_NOC_WITHOUT_ITEM_MAP', false);
+  const allowNoc = flag(ctx.env, 'ALLOW_NOC_WITHOUT_ITEM_MAP', true);
   return repoDashboards().map(({ file, folderDir, dashboard }) => {
     const needs = datasourceRefs(dashboard).filter((u) => off.has(u));
-    if (needs.length) return { file, folderDir, dashboard, state: 'skipped', reason: `deferred: needs datasource ${needs.join(', ')} (CLICKHOUSE_ENABLED=no)` };
+    if (needs.length) return { file, folderDir, dashboard, state: 'skipped', reason: `deferred: needs datasource ${needs.join(', ')} (${needs.map(deferReason).join(', ')})` };
     const usesItems = itemIds(dashboard).length > 0;
     if (!usesItems) return { file, folderDir, dashboard, state: 'ok' };
     if (ctx.itemMap) {

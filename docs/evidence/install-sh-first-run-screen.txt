@@ -1,0 +1,65 @@
+
+Grafana platform 2.1.0 — setup
+
+== Grafana
+  Address users will open (IP or DNS name of this server) [192.0.2.2]: (answered)
+    Only these source networks may reach Grafana (firewalld). Space-separated, e.g. 10.20.8.0/24 10.50.0.0/16
+  Allowed networks: (answered)
+    Web protocol: https needs a certificate + key file; http is unencrypted (choose it only on an isolated network).
+  Protocol, type http or https: (answered)
+
+== Zabbix (optional: the NOC dashboards and the Zabbix data source)
+  Connect Zabbix now? [Y/n]: 
+  Zabbix URL (e.g. http://10.20.8.24:8080): (answered)
+    Zabbix uses plain HTTP: its password crosses the network unencrypted.
+  Allow unencrypted data-source connections on this isolated network? [y/N]: (answered)
+  Zabbix API user (read-only): (answered)
+  Zabbix password for sim-grafana-ro: (hidden)
+    testing login ... login as sim-grafana-ro failed: Incorrect user name or password or account is temporarily blocked.
+  Try again? (n = install without Zabbix now, add it later with --zabbix) [Y/n]: 
+  Zabbix API user [sim-grafana-ro]: 
+  Zabbix password for sim-grafana-ro: (hidden)
+    testing login ... OK (Zabbix 7.0.30, 7 host(s) visible)
+
+== ClickHouse / Akvorado (optional: the 5 NetFlow dashboards)
+  Connect ClickHouse now? [y/N]: 
+
+== Grafana administrator
+  Password for the Grafana user 'admin' (Enter = generate one): (hidden)
+
+== Installing (this takes a few minutes; log in /tmp/gp-sim.Mf8g36/sys/var/log/grafana-platform)
+  offline archive found: /tmp/gp-sim.Mf8g36/clone/grafana-platform-2.1.0-rhel9-offline.tar.gz (install unpacks and verifies its bundle)
+  offline bundle unpacked from /tmp/gp-sim.Mf8g36/clone/grafana-platform-2.1.0-rhel9-offline.tar.gz (Grafana RPM, plugins and Node.js match the pins)
+  INSTALL: 37 PASS, 11 WARN, 0 FAIL
+  [WARN] Grafana listens with plain HTTP (GRAFANA_ALLOW_INSECURE_HTTP=yes): logins and cookies are unencrypted on the network
+  [WARN] Zabbix API over plain HTTP (allowed by ALLOW_INSECURE_DATASOURCES=yes): the Zabbix password crosses the network unencrypted
+  [WARN] /tmp/gp-sim.Mf8g36/sys/var/lib/grafana shares the root filesystem (a separate LV is recommended for the database)
+
+== Zabbix item map for the 2 NOC dashboards
+    These LAB router names are not in your Zabbix: SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B
+  Type their Zabbix host names now? (n = keep the NOC dashboards for later) [Y/n]: 
+  Zabbix host name for SITE-A (Enter = skip): (answered)
+  Zabbix host name for SITE-B (Enter = skip): (answered)
+  Zabbix host name for STC (Enter = skip): (answered)
+  Zabbix host name for MOBILY (Enter = skip): (answered)
+  Zabbix host name for INT-CORE (Enter = skip): (answered)
+  Zabbix host name for SAIX-A (Enter = skip): (answered)
+  Zabbix host name for SAIX-B (Enter = skip): (answered)
+    wrote /etc/grafana-platform/zabbix-item-map.json: 47 of 47 item(s) mapped (47 resolved now)
+    all items mapped
+    7 router uptime item(s) were matched by standard SNMP keys: confirm them in Zabbix (list: /etc/grafana-platform/zabbix-item-map.report.txt)
+
+== Deploying the dashboards the item map enables
+              health: OK Zabbix API login OK as sim-grafana-ro
+    created   dashboard noc-device-health -> noc
+    created   dashboard noc-wan-overview -> noc
+    applied: 2 created, 0 updated, 3 unchanged, 0 refused, 7 skipped
+
+==================================================================
+ Grafana is installed:  http://10.20.8.27:3000/
+ Login: admin / the password you entered
+ Zabbix: connected; NOC dashboards deployed
+ ClickHouse: not connected -> add it with: sudo grafana-platform setup --clickhouse
+ Note: plain HTTP (your explicit choice). Switch to https later: sudo grafana-platform setup --reconfigure
+ Health check any time: sudo grafana-platform verify
+==================================================================

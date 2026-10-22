@@ -85,12 +85,12 @@ if [ -z "$MISSING" ]; then ok "required documents present"; else bad "missing do
 
 echo "== 12. release 2.0: environment parser, shell lint, simulated RHEL host"
 if command -v python3 >/dev/null; then
-  python3 -m py_compile lib/envparse.py && ok "lib/envparse.py compiles" || bad "lib/envparse.py does not compile"
+  python3 -m py_compile lib/envparse.py lib/probe.py && ok "lib/envparse.py, lib/probe.py compile" || bad "python helpers do not compile"
   ERRS=$(python3 lib/envparse.py parse env/production.env.example | tr '\0' '\n' | grep -A1 -x E | grep -v -x -e E -e -- || true)
   [ -z "$ERRS" ] && ok "env/production.env.example is valid for the parser" || bad "env/production.env.example: $ERRS"
 else skip "parser checks (python3 missing)"; fi
 if command -v shellcheck >/dev/null; then
-  shellcheck -S warning -e SC2034,SC2154,SC1090,SC1091,SC2010,SC2046 bin/grafana-platform lib/*.sh tools/build-offline-bundle.sh tests/sim/run-sim.sh tests/sim/fakebin/* >/tmp/rg_sc 2>&1 && ok "shellcheck (warning level) clean" || { bad "shellcheck findings"; head -20 /tmp/rg_sc; }
+  shellcheck -S warning -e SC2034,SC2154,SC1090,SC1091,SC2010,SC2046 install.sh bin/grafana-platform lib/*.sh tools/build-offline-bundle.sh tests/sim/run-sim.sh tests/sim/fakebin/* >/tmp/rg_sc 2>&1 && ok "shellcheck (warning level) clean" || { bad "shellcheck findings"; head -20 /tmp/rg_sc; }
 else skip "shellcheck not installed"; fi
 if [ "$(id -u)" = 0 ] && command -v unshare >/dev/null && command -v node >/dev/null; then
   bash tests/sim/run-sim.sh ${GATE_V1_CHECKOUT:+"$GATE_V1_CHECKOUT"} >/tmp/rg_sim 2>&1 && ok "simulated RHEL 9.8 host: $(grep -E "^SIMULATION:" /tmp/rg_sim | sed "s/^SIMULATION: //"), $(grep -c "isolation: host" /tmp/rg_sim) isolation check  (SIMULATION ONLY)" || { bad "simulation failed"; grep -E "FAIL|SIMULATION" /tmp/rg_sim | head -15; }

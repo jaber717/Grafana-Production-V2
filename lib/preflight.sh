@@ -65,9 +65,10 @@ run_preflight() {
     fail "unsupported OS '$id $vid' (needs RHEL 9.x; RHEL 8, RHEL 10, Debian/Ubuntu and others are not supported)"
   fi
   [ "$(uname -m)" = x86_64 ] && pass "architecture x86_64" || fail "architecture $(uname -m) is not supported (x86_64 only)"
-  if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = Enforcing ]; then pass "SELinux is Enforcing"; else fail "SELinux must be Enforcing (found: $(getenforce 2>/dev/null || echo unknown))"; fix "setenforce 1 (and SELINUX=enforcing in /etc/selinux/config)"; fi
-  grep -qiE '^SELINUX=enforcing' "${GP_SELINUX_CONFIG:-/etc/selinux/config}" 2>/dev/null && pass "SELinux is persistently Enforcing" || fail "/etc/selinux/config does not say SELINUX=enforcing"
-  systemctl is-active --quiet firewalld && pass "firewalld is active" || { fail "firewalld must be installed and active"; fix "systemctl enable --now firewalld"; }
+  # SELinux: recommended, not a blocker (RHEL ships no Grafana policy, the service runs unconfined_service_t either way)
+  if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = Enforcing ] && grep -qiE '^SELINUX=enforcing' "${GP_SELINUX_CONFIG:-/etc/selinux/config}" 2>/dev/null; then pass "SELinux is Enforcing (and persistent)"
+  else warn "SELinux is not (persistently) Enforcing: $(getenforce 2>/dev/null || echo unknown). Recommended: setenforce 1 and SELINUX=enforcing in /etc/selinux/config"; fi
+  systemctl is-active --quiet firewalld && pass "firewalld is active" || { fail "firewalld is not active: Grafana's port would be open to every source"; fix "systemctl enable --now firewalld   (it is what restricts the port to GRAFANA_ALLOWED_CIDRS)"; }
   [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = yes ] && pass "system clock is NTP-synchronized" || warn "clock is not NTP-synchronized (certificate validation and Zabbix timestamps depend on it)"
 
   step "Environment file ($ENV_FILE_USED)"
@@ -85,19 +86,23 @@ run_preflight() {
   else fail "GRAFANA_ALLOWED_CIDRS is empty (there is no default: the port is never opened to everyone)"; fix "$cli config set \"GRAFANA_ALLOWED_CIDRS=<subnet> <subnet>\" $ef   (the user/NOC subnets allowed to open Grafana)"; fi
 
   info "insecure-transport exceptions in effect: GRAFANA_ALLOW_INSECURE_HTTP=$GRAFANA_ALLOW_INSECURE_HTTP  ALLOW_INSECURE_DATASOURCES=$ALLOW_INSECURE_DATASOURCES  (both default to no)"
-  case "$ZABBIX_URL" in
-    https://*) pass "Zabbix URL uses https" ;;
-    http://*) if [ "$ALLOW_INSECURE_DATASOURCES" = yes ]; then warn "Zabbix API over plain HTTP (allowed by ALLOW_INSECURE_DATASOURCES=yes): the Zabbix password crosses the network unencrypted"
-              else fail "ZABBIX_URL is http:// and ALLOW_INSECURE_DATASOURCES is '$ALLOW_INSECURE_DATASOURCES'"; fix "$cli config set ALLOW_INSECURE_DATASOURCES=yes $ef   (or use the https URL of Zabbix)"; fi ;;
-    "") fail "ZABBIX_URL is not set"; fix "$cli config set ZABBIX_URL=http://<zabbix>/api_jsonrpc.php $ef" ;;
-    *) fail "ZABBIX_URL must start with http:// or https:// (got '$ZABBIX_URL')" ;;
-  esac
-  case "$ZABBIX_URL" in *api_jsonrpc.php) ;; http*://*) warn "ZABBIX_URL does not end with /api_jsonrpc.php (the Zabbix datasource needs the API endpoint)" ;; esac
-  [ -n "$ZABBIX_USER" ] && pass "Zabbix API user $ZABBIX_USER" || { fail "ZABBIX_USER is empty"; fix "$cli config set ZABBIX_USER=<read-only Zabbix user> $ef"; }
-  if [ "$ZABBIX_TLS_SKIP_VERIFY" = true ]; then
-    if [ "$ALLOW_INSECURE_DATASOURCES" = yes ]; then warn "Zabbix certificate verification is DISABLED (ALLOW_INSECURE_DATASOURCES=yes)"; else fail "ZABBIX_TLS_SKIP_VERIFY=true is refused unless ALLOW_INSECURE_DATASOURCES=yes"; fix "provide ZABBIX_CA_FILE instead"; fi
-  elif [[ "$ZABBIX_URL" == https://* ]]; then pass "Zabbix certificate verification enabled"; fi
-
+  if zabbix_enabled; then
+    case "$ZABBIX_URL" in
+      https://*) pass "Zabbix URL uses https" ;;
+      http://*) if [ "$ALLOW_INSECURE_DATASOURCES" = yes ]; then warn "Zabbix API over plain HTTP (allowed by ALLOW_INSECURE_DATASOURCES=yes): the Zabbix password crosses the network unencrypted"
+                else fail "ZABBIX_URL is http:// and ALLOW_INSECURE_DATASOURCES is '$ALLOW_INSECURE_DATASOURCES'"; fix "$cli config set ALLOW_INSECURE_DATASOURCES=yes $ef   (or use the https URL of Zabbix)"; fi ;;
+      "") fail "ZABBIX_URL is not set"; fix "$cli config set ZABBIX_URL=http://<zabbix>/api_jsonrpc.php $ef" ;;
+      *) fail "ZABBIX_URL must start with http:// or https:// (got '$ZABBIX_URL')" ;;
+    esac
+    case "$ZABBIX_URL" in *api_jsonrpc.php) ;; http*://*) warn "ZABBIX_URL does not end with /api_jsonrpc.php (the Zabbix datasource needs the API endpoint)" ;; esac
+    [ -n "$ZABBIX_USER" ] && pass "Zabbix API user $ZABBIX_USER" || { fail "ZABBIX_USER is empty"; fix "$cli config set ZABBIX_USER=<read-only Zabbix user> $ef"; }
+    if [ "$ZABBIX_TLS_SKIP_VERIFY" = true ]; then
+      if [ "$ALLOW_INSECURE_DATASOURCES" = yes ]; then warn "Zabbix certificate verification is DISABLED (ALLOW_INSECURE_DATASOURCES=yes)"; else fail "ZABBIX_TLS_SKIP_VERIFY=true is refused unless ALLOW_INSECURE_DATASOURCES=yes"; fix "provide ZABBIX_CA_FILE instead"; fi
+    elif [[ "$ZABBIX_URL" == https://* ]]; then pass "Zabbix certificate verification enabled"; fi
+  else
+    warn "Zabbix not configured (ZABBIX_ENABLED=no): no Zabbix datasource and no NOC dashboards yet (Grafana itself is installed normally)"
+    info "add it later: sudo ./install.sh --zabbix"
+  fi
   if clickhouse_enabled; then
     [ -n "$CLICKHOUSE_HOST" ] && [ "$CLICKHOUSE_HOST" != "netflow.example.com" ] && pass "ClickHouse host $CLICKHOUSE_HOST:$CLICKHOUSE_PORT" || { fail "CLICKHOUSE_HOST is empty or still the template value"; fix "$cli config set CLICKHOUSE_HOST=<akvorado host> $ef   (or defer NetFlow: $cli config set CLICKHOUSE_ENABLED=no $ef)"; }
     [ -n "$CLICKHOUSE_USER" ] || { fail "CLICKHOUSE_USER is empty"; fix "$cli config set CLICKHOUSE_USER=grafana_ro $ef"; }
@@ -106,7 +111,7 @@ run_preflight() {
     else fail "CLICKHOUSE_SECURE=false and ALLOW_INSECURE_DATASOURCES is '$ALLOW_INSECURE_DATASOURCES'"; fix "enable TLS on ClickHouse, or: $cli config set ALLOW_INSECURE_DATASOURCES=yes $ef"; fi
   else
     warn "NetFlow deferred (CLICKHOUSE_ENABLED=no): the ClickHouse datasource, the 5 NetFlow dashboards and the NetFlow playlist are NOT deployed (nothing broken is created)"
-    info "enable later: $cli config set CLICKHOUSE_ENABLED=yes CLICKHOUSE_HOST=<host> ... ; $cli secret set clickhouse-password ; $cli apply"
+    info "add it later: sudo ./install.sh --clickhouse"
   fi
   case "$PLATFORM_ENV" in production) pass "PLATFORM_ENV=production" ;; *) warn "PLATFORM_ENV=$PLATFORM_ENV (not production)" ;; esac
   if grep -qE '192\.168\.1\.(91|195|194)' "$ENV_FILE_USED" 2>/dev/null; then fail "the environment file still contains LAB addresses (192.168.1.x)"; else pass "no LAB addresses in the environment file"; fi
@@ -146,42 +151,38 @@ run_preflight() {
   done
 
   step "Reachability of the data sources (read-only, no credentials sent)"
-  local zv; zv=$(probe_zabbix)
-  if [ -n "$zv" ]; then pass "Zabbix API answers at $ZABBIX_URL (version $zv)"; else warn "Zabbix API did not answer apiinfo.version at $ZABBIX_URL (firewall, URL or certificate); the datasource health check will fail until it does"; fi
+  local zv; zabbix_enabled && zv=$(probe_zabbix)
+  if ! zabbix_enabled; then :; elif [ -n "$zv" ]; then pass "Zabbix API answers at $ZABBIX_URL (version $zv)"; else warn "Zabbix API did not answer apiinfo.version at $ZABBIX_URL (firewall, URL or certificate); the datasource health check will fail until it does"; fi
   if clickhouse_enabled; then
     [ "$(probe_clickhouse)" = "Ok." ] && pass "ClickHouse answers /ping at $CLICKHOUSE_HOST:$CLICKHOUSE_PORT" || warn "ClickHouse did not answer /ping at $CLICKHOUSE_HOST:$CLICKHOUSE_PORT (firewall/TLS/port)"
   fi
 
-  step "Packages and tooling (source: $PKG_SRC; $PKG_SRC_WHY)"
-  local need; need=$(missing_artifacts)
-  if [ -z "$need" ]; then pass "Grafana package and plugins are already at the pinned versions: nothing has to be downloaded"
-  elif [ "$PKG_SRC" = bundle ]; then
-    if [ -f "$BUNDLE_DIR/SHA256SUMS" ]; then
-      (cd "$BUNDLE_DIR" && sha256sum -c --quiet SHA256SUMS >/dev/null 2>&1) && pass "offline bundle checksums verify ($BUNDLE_DIR)" || { fail "offline bundle at $BUNDLE_DIR fails its SHA-256 manifest (damaged copy)"; fix "re-copy the bundle archive and check: sha256sum -c grafana-platform-*-offline.tar.gz.sha256"; }
-      local a miss=""; for a in $need; do
-        case "$a" in rpm:*) [ -f "$BUNDLE_DIR/rpm/${a#rpm:}.x86_64.rpm" ] || miss+=" rpm/${a#rpm:}.x86_64.rpm" ;; plugin:*) [ -f "$BUNDLE_DIR/plugins/${a#plugin:}.zip" ] || miss+=" plugins/${a#plugin:}.zip" ;; esac
-      done
-      [ -z "$miss" ] && pass "offline bundle provides: $(echo "$need" | sed "s/rpm://g; s/plugin://g")" || { fail "offline bundle lacks:$miss (it was built for other pins)"; fix "build the bundle from THIS release: tools/build-offline-bundle.sh"; }
-    else fail "PACKAGE_SOURCE=bundle but there is no bundle at $BUNDLE_DIR"; fix "extract grafana-platform-$(cat "$RELEASE_DIR/VERSION")-rhel9-offline.tar.gz and run the command from inside it (the bundle is found automatically)"; fi
-  else
-    local r1=0 r2=0
-    curl -sSI -m 10 "$GRAFANA_RPM_REPO_URL/repodata/repomd.xml" >/dev/null 2>&1 || r1=1
-    curl -sSI -m 10 "https://grafana.com/api/plugins/alexanderzobnin-zabbix-app" >/dev/null 2>&1 || r2=1
-    if [ $r1 = 0 ] && [ $r2 = 0 ]; then pass "online sources reachable (rpm.grafana.com, grafana.com)"
-    else
-      fail "this host cannot download $(echo "$need" | sed "s/rpm://g; s/plugin://g") (rpm.grafana.com reachable: $([ $r1 = 0 ] && echo yes || echo no), grafana.com reachable: $([ $r2 = 0 ] && echo yes || echo no)) and no offline bundle was found at $BUNDLE_DIR"
-      fix "on any machine WITH Internet: tools/build-offline-bundle.sh  ->  copy dist/grafana-platform-$(cat "$RELEASE_DIR/VERSION")-rhel9-offline.tar.gz to this server, extract it, and run this command from the extracted directory"
-    fi
-  fi
-  [ "$(dnf -q repolist 2>/dev/null | wc -l)" -gt 0 ] && pass "dnf has enabled repositories" || fail "dnf has no enabled repositories (RHEL BaseOS/AppStream via Satellite, a mirror or the mounted ISO are required for prerequisites)"
-  local p; for p in curl tar xz unzip openssl sqlite policycoreutils-python-utils python3 python3-dnf-plugin-versionlock gnupg2; do
-    if rpm -q "$p" >/dev/null 2>&1; then pass "prerequisite $p installed"; elif check_pkg_installable "$p"; then info "prerequisite $p will be installed from your repositories"; else fail "prerequisite $p is neither installed nor available from the enabled repositories"; fi
+  step "Packages and tooling"
+  package_plan
+  case "$PKG_PLAN" in
+    none) pass "$PKG_PLAN_DETAIL: nothing has to be downloaded" ;;
+    bundle)
+      local bad; if bad=$(verify_pinned_bundle "$BUNDLE_DIR"); then pass "offline bundle at $BUNDLE_DIR (every artifact matches the pins)"
+      else fail "offline bundle at $BUNDLE_DIR is damaged or for other pins:$bad"; fix "remove $BUNDLE_DIR and run the installer again (it re-takes the bundle from an archive or downloads it)"; fi ;;
+    archive) pass "offline archive found: $PKG_PLAN_DETAIL (install unpacks and verifies its bundle)" ;;
+    repo) pass "online package sources reachable ($PKG_PLAN_DETAIL)" ;;
+    download) pass "no local bundle; the pinned offline archive is reachable and will be downloaded once: $PKG_PLAN_DETAIL" ;;
+    missing) fail "the Grafana package cannot be obtained: no offline bundle here, no Internet access, and $(bundle_url) is not reachable"
+             fix "download $(basename "$(bundle_url)") on any PC from $(bundle_url), copy it next to install.sh (or to /root), and run the installer again — it is found and verified automatically" ;;
+  esac
+  # required tools block; optional ones (backups, version lock, SELinux tooling) only warn
+  local p; for p in $PREREQS_REQUIRED; do
+    if rpm -q "$p" >/dev/null 2>&1; then pass "prerequisite $p installed"; elif check_pkg_installable "$p"; then info "prerequisite $p will be installed from your repositories"; else fail "prerequisite $p is missing and not available from the enabled dnf repositories"; fix "enable RHEL BaseOS/AppStream (Satellite, mirror or mounted ISO), or: dnf install $p"; fi
+  done
+  for p in $PREREQS_OPTIONAL; do
+    if rpm -q "$p" >/dev/null 2>&1; then pass "optional $p installed"; elif check_pkg_installable "$p"; then info "optional $p will be installed from your repositories"; else warn "optional $p unavailable: $(optional_purpose "$p") will not work until it is installed"; fi
   done
   if [ -n "$(node_bin)" ]; then pass "Node.js $("$(node_bin)" -v) available"
-  elif [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ]; then pass "Node.js $NODE_BUNDLE_VERSION from the offline bundle"
+  elif [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ] || [[ "$PKG_PLAN" =~ ^(archive|download|bundle)$ ]]; then pass "Node.js $NODE_BUNDLE_VERSION from the offline bundle"
   elif check_pkg_installable nodejs; then info "Node.js will be installed from your repositories (AppStream, stream nodejs:20)"
   else fail "Node.js >= 18 is required (AppStream nodejs:20 or the offline bundle)"; fi
 
+  if zabbix_enabled; then
   step "NOC dashboards: Zabbix item map ($ZABBIX_ITEM_MAP_FILE)"
   local need_n missing_n missing_ids mapstate
   mapstate=$(python3 - "$RELEASE_DIR" "$ZABBIX_ITEM_MAP_FILE" <<'PY'
@@ -210,13 +211,14 @@ PY
       local what; [ "$mapstate" = nomap ] && what="no item map yet" || what="item map misses $missing_n of $need_n item ids (${missing_ids}...)"
       if [ "$ALLOW_NOC_WITHOUT_ITEM_MAP" = yes ]; then
         warn "NOC dashboards deferred: $what. They are NOT deployed (no half-mapped dashboard is ever created); the NetFlow dashboards are unaffected"
-        info "later: $cli item-map   then   $cli apply"
+        info "the installer builds the map from Zabbix after Grafana is up; later: sudo ./install.sh --zabbix"
       else
         fail "NOC dashboards cannot be deployed: $what"
         fix "either build the map now: $cli item-map $ef   (needs the Zabbix password secret; reads Zabbix only)"
         fix "or defer the 2 NOC dashboards: $cli config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes $ef"
       fi ;;
   esac
+  fi
 
   step "Storage and ports"
   local probe=$GRAFANA_VAR; while [ ! -d "$probe" ]; do probe=$(dirname "$probe"); done

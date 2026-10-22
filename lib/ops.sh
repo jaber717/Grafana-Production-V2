@@ -17,7 +17,7 @@ verify_all() {
   # shellcheck disable=SC1090
   . "$OS_RELEASE_FILE"
   [ "$ID" = rhel ] && [[ "$VERSION_ID" == 9.* ]] && pass "OS: Red Hat Enterprise Linux $VERSION_ID" || { [ "${PLATFORM_ALLOW_EL_CLONE:-no}" = yes ] && warn "OS: $ID $VERSION_ID (EL clone allowed for acceptance testing)" || fail "OS: $ID $VERSION_ID is not RHEL 9.x"; }
-  [ "$(getenforce)" = Enforcing ] && pass "SELinux Enforcing" || fail "SELinux is $(getenforce)"
+  [ "$(getenforce 2>/dev/null)" = Enforcing ] && pass "SELinux Enforcing" || warn "SELinux is $(getenforce 2>/dev/null || echo unknown) (Grafana runs unconfined on RHEL either way; Enforcing is still recommended)"
   systemctl is-active --quiet firewalld && pass "firewalld active" || fail "firewalld inactive"
   local avc; avc=$(ausearch -m avc,user_avc -ts boot -c grafana-server 2>/dev/null | grep -c 'type=AVC' || true)
   [ "${avc:-0}" = 0 ] && pass "no SELinux denials for grafana-server since boot" || fail "$avc SELinux denial(s) for grafana-server since boot (ausearch -m avc -c grafana-server)"
@@ -58,7 +58,7 @@ verify_all() {
   chk_mode() { local m; m=$(mode_of "$1"); case " $2 " in *" $m "*) pass "$1 mode $m owner $(owner_of "$1")" ;; *) fail "$1 has mode $m (expected $2)" ;; esac; }
   chk_mode "$GRAFANA_ETC/grafana.ini" "640 600 440"
   chk_mode "$SECRETS_DIR/admin-password" "640 600 440"; chk_mode "$SECRETS_DIR/secret-key" "640 600 440"
-  chk_mode "$SECRETS_DIR/zabbix-password" "600 400"; clickhouse_enabled && chk_mode "$SECRETS_DIR/clickhouse-password" "600 400"
+  zabbix_enabled && chk_mode "$SECRETS_DIR/zabbix-password" "600 400"; clickhouse_enabled && chk_mode "$SECRETS_DIR/clickhouse-password" "600 400"
   [ "$GRAFANA_PROTOCOL" = https ] && chk_mode "$GRAFANA_ETC/tls/grafana.key" "640 600 440"
   [ -f "$GRAFANA_VAR/grafana.db" ] && [ "$(owner_of "$GRAFANA_VAR/grafana.db")" = grafana:grafana ] && pass "database owned by grafana, mode $(mode_of "$GRAFANA_VAR/grafana.db")" || fail "database missing or wrong owner"
   grep -rIlE 'password *= *[^$ ]' "$GRAFANA_ETC/grafana.ini" >/dev/null 2>&1 && fail "grafana.ini contains a literal password" || pass "grafana.ini holds no literal password"

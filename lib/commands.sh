@@ -88,6 +88,7 @@ cmd_secret() {
 
 # ------------------------------------------------------------------------------------------------------------- Zabbix helpers
 zabbix_tool() { # runs tools/zabbix-item-map.mjs with the datasource credentials (password through the environment, never argv)
+  zabbix_enabled || die "Zabbix is not connected (ZABBIX_ENABLED=no): connect it with: sudo ./install.sh --zabbix"
   node_runtime
   local pw; pw=$(secret zabbix-password)
   [ -n "$pw" ] || die "secret zabbix-password is missing: $(CLI) secret set zabbix-password"

@@ -32,7 +32,7 @@ CLI() {
   else echo "$RELEASE_DIR/bin/grafana-platform"; fi
 }
 # "--env-file F" for fix hints, only when the operator had to name the file (the default file needs no option)
-ENV_HINT() { [ -n "${ENV_FILE_ARG:-}" ] && printf -- '--env-file %s' "$ENV_FILE_ARG"; return 0; }
+ENV_HINT() { [ -n "${ENV_FILE_ARG:-}" ] && [ "$ENV_FILE_ARG" != "$ENV_INSTALLED" ] && printf -- '--env-file %s' "$ENV_FILE_ARG"; return 0; }
 
 parse_common_args() {
   OPT_ARGS=()
@@ -127,7 +127,8 @@ wait_health() { # $1 seconds
 
 secret() { cat "$SECRETS_DIR/$1" 2>/dev/null | tr -d '\r\n'; }
 clickhouse_enabled() { [ "${CLICKHOUSE_ENABLED:-yes}" = yes ]; }
-required_secrets() { echo zabbix-password; clickhouse_enabled && echo clickhouse-password; return 0; }
+zabbix_enabled() { [ "${ZABBIX_ENABLED:-yes}" = yes ]; }
+required_secrets() { zabbix_enabled && echo zabbix-password; clickhouse_enabled && echo clickhouse-password; return 0; }
 
 # Node.js for the content tools. sudo's secure_path usually omits /usr/local/bin, where the offline bundle links node.
 node_bin() {
@@ -151,7 +152,7 @@ run_content_tool() { # $1 script name (apply|verify|backup|restore), rest = args
   local nenv rc=0; nenv=$(mktemp); write_normalized_env "$nenv"
   GRAFANA_URL="$(base_url)" GRAFANA_USER="$GRAFANA_ADMIN_USER" GRAFANA_PASSWORD="$(secret admin-password)" \
   GRAFANA_CONNECT_ADDR=127.0.0.1 GRAFANA_CA_FILE=${GP_CA_BUNDLE:-/etc/pki/tls/certs/ca-bundle.crt} \
-  ZABBIX_GRAFANA_PASSWORD="$(secret zabbix-password)" CLICKHOUSE_RO_PASSWORD="$(clickhouse_enabled && secret clickhouse-password || true)" \
+  ZABBIX_GRAFANA_PASSWORD="$(zabbix_enabled && secret zabbix-password || true)" CLICKHOUSE_RO_PASSWORD="$(clickhouse_enabled && secret clickhouse-password || true)" \
   PLATFORM_ENV_FILE="$nenv" \
   "$node" "$RELEASE_DIR/scripts/$tool.mjs" --env-file "$nenv" "$@" || rc=$?
   rm -f "$nenv"

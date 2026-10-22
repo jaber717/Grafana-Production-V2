@@ -5,7 +5,7 @@
 // Exit 0 = PASS (WARN allowed), 1 = FAIL.
 import { get, URL_, parseArgs, readJson, repoPlugins, normalizeDashboard, canonical, dsComparable, fail } from './lib/grafana.mjs';
 import { loadContext, effectiveDashboards, effectivePlaylists } from './lib/content.mjs';
-import { deferredDatasources } from './lib/envcfg.mjs';
+import { deferredDatasources, deferReason } from './lib/envcfg.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from './lib/grafana.mjs';
@@ -27,7 +27,7 @@ const folders = readJson('config/folders.json');
 const liveFolders = new Map((await get('/api/folders')).map((f) => [f.uid, f.title]));
 for (const f of folders) rec(liveFolders.get(f.uid) === f.title ? 'PASS' : 'FAIL', `folder ${f.uid}`, liveFolders.has(f.uid) ? `title "${liveFolders.get(f.uid)}"` : 'missing');
 
-if (!args['skip-datasources']) for (const uid of deferredDatasources(CTX.env)) rec('WARN', `datasource ${uid}`, 'deferred by configuration (CLICKHOUSE_ENABLED=no)');
+if (!args['skip-datasources']) for (const uid of deferredDatasources(CTX.env)) rec('WARN', `datasource ${uid}`, `deferred by configuration (${deferReason(uid)})`);
 for (const want of args['skip-datasources'] ? [] : CTX.datasources) {
   const cur = await get(`/api/datasources/uid/${want.uid}`, { allow404: true });
   if (!cur) { rec('FAIL', `datasource ${want.uid}`, 'missing'); continue; }

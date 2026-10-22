@@ -42,7 +42,8 @@ SCHEMA = {
     "GRAFANA_ADMIN_USER": (STR, "admin", None),
     "GRAFANA_ROOT_URL": (STR, None, None),
     "GRAFANA_FIREWALL_ZONE": (STR, None, None),
-    # Zabbix datasource
+    # Zabbix datasource (no = Grafana without Zabbix; the NOC dashboards wait for it)
+    "ZABBIX_ENABLED": (YESNO, "yes", None),
     "ZABBIX_DS_NAME": (STR, "Zabbix", None),
     "ZABBIX_URL": (STR, None, None),
     "ZABBIX_USER": (STR, None, None),
@@ -58,10 +59,12 @@ SCHEMA = {
     "CLICKHOUSE_CA_FILE": (STR, None, None),
     # NOC dashboards
     "ZABBIX_ITEM_MAP_FILE": (STR, None, None),
-    "ALLOW_NOC_WITHOUT_ITEM_MAP": (YESNO, "no", None),
+    "ALLOW_NOC_WITHOUT_ITEM_MAP": (YESNO, "yes", None),
     # packages
     "PACKAGE_SOURCE": (ENUM, "auto", ("auto", "repo", "bundle")),
     "BUNDLE_DIR": (STR, None, None),
+    "BUNDLE_URL": (STR, None, None),
+    "BUNDLE_URL_SHA256": (STR, None, None),
     # storage / operations
     "SECRETS_DIR": (STR, None, None),
     "BACKUP_DIR": (STR, "/var/backups/grafana-platform", None),

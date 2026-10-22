@@ -48,7 +48,7 @@ cp /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt 2>/dev/nu
 PASSN=0; FAILN=0; FAILED=()
 ok()  { printf '  [PASS] %s\n' "$1"; PASSN=$((PASSN+1)); }
 bad() { printf '  [FAIL] %s\n' "$1"; FAILN=$((FAILN+1)); FAILED+=("$1"); }
-check() { if eval "$2"; then ok "$1"; else bad "$1"; [ -n "${SIM_VERBOSE:-}" ] && grep -E 'FAIL|FATAL|fix:|ERROR|rror|refused' "$W/out" | head -12 | sed 's/^/        | /'; fi; return 0; }        # check "<description>" '<shell condition>'
+check() { if eval "$2"; then ok "$1"; else bad "$1"; [ -n "${SIM_VERBOSE:-}" ] && grep -E 'FAIL|FATAL|fix:|ERROR|rror|refused|bundle|archive|download|reachable' "$W/out" | head -14 | sed 's/^/        | /'; fi; return 0; }        # check "<description>" '<shell condition>'
 section() { printf '\n### %s\n' "$*"; }
 out_has() { grep -qE -- "$1" "$W/out"; }
 out_lacks() { ! grep -qE -- "$1" "$W/out"; }
@@ -135,6 +135,7 @@ gp_env=(
   GP_ETC="$W/sys/etc/grafana-platform" GP_OPT="$W/sys/opt/grafana-platform" GP_GRAFANA_ETC="$W/sys/etc/grafana"
   GP_GRAFANA_VAR="$W/sys/var/lib/grafana" GP_LOGDIR="$W/sys/var/log/grafana-platform"
   HTTPS_PROXY=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost
+  GP_ARCHIVE_SEARCH="$W/server $W/clone"
 )
 gp()  { env "${gp_env[@]}" "$REL/bin/grafana-platform" "$@" > "$W/out" 2>&1; }          # run, output in $W/out
 gpi() { env "${gp_env[@]}" "$REL/bin/grafana-platform" "$@" 2>&1; }                    # run, output on stdout
@@ -210,8 +211,8 @@ check "Zabbix over HTTP is a WARN (flag honored), not a FAIL" 'out_has "\[WARN\]
 check "Grafana over HTTP is a WARN" 'out_has "\[WARN\] Grafana listens with plain HTTP"'
 check "missing zabbix-password FAIL carries the exact command" 'out_has "\[FAIL\] secret zabbix-password is missing" && out_has "fix:.*secret set zabbix-password"'
 check "clickhouse-password is NOT required while NetFlow is deferred" 'out_lacks "clickhouse-password is missing" && out_has "NetFlow deferred"'
-check "offline bundle found automatically: no rpm.grafana.com/grafana.com FAIL" 'out_has "source: bundle; auto: offline bundle found" && out_has "offline bundle checksums verify" && out_lacks "cannot download"'
-check "missing item map FAIL offers item-map or deferral" 'out_has "\[FAIL\] NOC dashboards cannot be deployed: no item map yet" && out_has "fix:.*item-map" && out_has "fix:.*ALLOW_NOC_WITHOUT_ITEM_MAP=yes"'
+check "offline bundle found automatically: no rpm.grafana.com/grafana.com FAIL" 'out_has "offline bundle at .*every artifact matches the pins" && out_lacks "cannot be obtained"'
+check "missing item map is NOT a blocker any more: NOC dashboards deferred (WARN)" 'out_has "\[WARN\] NOC dashboards deferred: no item map yet" && out_lacks "\[FAIL\] NOC"'
 check "Zabbix reachability probed read-only" 'out_has "Zabbix API answers at .* \(version 7.0.30\)"'
 check "every FAIL line is followed by a fix line" '[ "$(grep -c "^\[FAIL\]" "$W/out")" -le "$(grep -c "fix:" "$W/out")" ]'
 
@@ -279,7 +280,7 @@ check "preflight on the installed host needs no package source any more" '[ $rc 
 
 section "2.0 a half-built item map is never deployed"
 reset_host
-gp init-env "$ENVF" --yes GRAFANA_DOMAIN=10.20.8.27 GRAFANA_PROTOCOL=http GRAFANA_ALLOW_INSECURE_HTTP=yes "GRAFANA_ALLOWED_CIDRS=10.0.0.0/8" \
+gp init-env "$ENVF" --yes GRAFANA_DOMAIN=10.20.8.27 GRAFANA_PROTOCOL=http GRAFANA_ALLOW_INSECURE_HTTP=yes "GRAFANA_ALLOWED_CIDRS=10.0.0.0/8" ALLOW_NOC_WITHOUT_ITEM_MAP=no \
    "ZABBIX_URL=$ZBX_URL" "ZABBIX_USER=$ZBX_USER" ALLOW_INSECURE_DATASOURCES=yes CLICKHOUSE_ENABLED=no SECRETS_DIR="$W/sys/etc/grafana-platform/secrets" \
    BACKUP_DIR="$W/sys/backups" ZABBIX_ITEM_MAP_FILE="$W/sys/etc/grafana-platform/zabbix-item-map.json"
 gpi secret set zabbix-password --env-file "$ENVF" < "$W/zbx.pw" > /dev/null
@@ -294,53 +295,100 @@ section "2.0 repo mode on an isolated host: one FAIL, with the way out"
 reset_host
 mv "$REL/bundle" "$REL/bundle.off"
 gp preflight --env-file "$ENVF"; rc=$?
-check "no bundle + no Internet -> ONE package FAIL that explains the offline bundle" '[ "$(grep -c "^\[FAIL\].*download" "$W/out")" = 1 ] && out_has "fix:.*build-offline-bundle.sh"'
+check "no bundle + no Internet -> ONE package FAIL that says which single file to copy" '[ "$(grep -c "^\[FAIL\].*cannot be obtained" "$W/out")" = 1 ] && out_has "copy it next to install.sh"'
 mv "$REL/bundle.off" "$REL/bundle"
 
-section "INSTALL.md executed verbatim (placeholders replaced by simulation values; real /etc paths inside the namespace)"
-reset_host; rm -rf /etc/grafana-platform /var/backups/* "$REL/env/production.env"
+section "ONE command: sudo ./install.sh from a git clone WITHOUT bundle; the offline archive lies next to it (auto-found, verified, unpacked)"
+reset_host; rm -rf /etc/grafana-platform /var/backups/* "$W/clone"
 # shellcheck disable=SC2054
 doc_env=(
   PATH="$HERE/fakebin:/usr/local/sbin:$SIM_PATH" SIM_STATE="$W/sys/state" SIM_DIR="$HERE" SIM_NODE="$SIM_NODE"
   SIM_RPMS_PRESENT="curl tar xz unzip openssl sqlite policycoreutils-python-utils python3 python3-dnf-plugin-versionlock gnupg2"
   GP_OPT="$W/sys/opt/grafana-platform" GP_GRAFANA_ETC="$W/sys/etc/grafana" GP_GRAFANA_VAR="$W/sys/var/lib/grafana" GP_LOGDIR="$W/sys/var/log/grafana-platform"
   HTTPS_PROXY=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost
+  GP_ARCHIVE_SEARCH="$W/server $W/clone"
 )
-python3 - "$V2/INSTALL.md" > "$W/doc-steps.txt" <<'PY'
-import re, sys
-t = open(sys.argv[1]).read()
-for sec in re.split(r'\n## ', t)[1:]:
-    num = sec.split('.', 1)[0]
-    sec = sec.split('\n---')[0]          # the optional TLS / troubleshooting notes after the last step are not part of the procedure
-    if num in ('2', '3', '4', '5', '6', '7'):
-        for b in re.findall(r'```bash\n(.*?)\n```', sec, re.S):
-            print(num + '\t' + b.strip())
-        if num == '5':   # the deploy command of the "Complete" bullet is inline code
-            m = re.search(r'deploy them: `([^`]+)`', sec); print('5d\t' + m.group(1))
-PY
-docsub() { sed -e "s#<user and NOC subnets, space separated>#10.0.0.0/8#; s#<read-only Zabbix user>#$ZBX_USER#; s#http://10.20.8.24:8080/api_jsonrpc.php#$ZBX_URL#" \
-               -e "s#CLICKHOUSE_HOST=10.20.8.28#CLICKHOUSE_HOST=127.0.0.1#; s#<8123 for http, 8443 for https>#$CH_PORT#; s#<false|true>#false#; s#<ClickHouse read-only user>#grafana_ro#"; }
+mkdir -p "$W/clone" && cp -a "$W/src" "$W/clone/Grafana-Production-V2" && rm -rf "$W/clone/Grafana-Production-V2/bundle"
+CLONE="$W/clone/Grafana-Production-V2"
+if [ -n "${SIM_REAL_BUNDLE:-}" ] && [ -f "$SIM_REAL_BUNDLE" ]; then cp "$SIM_REAL_BUNDLE" "$W/clone/"; else cp "$ARCH" "$W/clone/"; fi
 printf 'sim-admin-%s' "$RANDOM$RANDOM" > "$W/admin.pw"
-n=0; docfail=0
-while IFS=$'\t' read -r sec cmd; do
-  n=$((n+1)); cmd=$(printf '%s' "$cmd" | docsub); in=/dev/null
-  case "$cmd" in *"secret set zabbix-password"*) in="$W/zbx.pw" ;; *"secret set admin-password"*) in="$W/admin.pw" ;; *"secret set clickhouse-password"*) in="$W/ch.pw" ;; esac
-  if [ "$sec" = 5 ]; then   # the production host names differ in the simulation: this is the documented "Incomplete" path
-    (cd "$REL" && env "${doc_env[@]}" bash -c "$cmd" < "$in") > "$W/out" 2>&1; rc=$?
-    check "INSTALL.md step 5: '$cmd' reports the incomplete map and lists the LAB host names (rc=$rc)" '[ $rc = 0 ] && out_has "INCOMPLETE" && out_has "host \"SITE-A\" not found"'
-    cmd="grafana-platform item-map --host SITE-A=RYD-SITE-A,SITE-B=RYD-SITE-B,STC=RYD-STC,MOBILY=RYD-MOBILY,INT-CORE=RYD-INT-CORE,SAIX-A=RYD-SAIX-A,SAIX-B=RYD-SAIX-B"
-  fi
-  (cd "$REL" && env "${doc_env[@]}" bash -c "$cmd" < "$in") > "$W/out" 2>&1; rc=$?
-  check "INSTALL.md step $sec: $(printf '%s' "$cmd" | cut -c1-110)$( [ ${#cmd} -gt 110 ] && echo ...)  (rc=$rc)" '[ $rc = 0 ]' || docfail=1
-  [ "$sec" = 4 ] && cp "$W/out" "$W/doc-install.txt"
-  [ "$sec" = 7 ] && cp "$W/out" "$W/doc-step7-$n.txt"
-done < "$W/doc-steps.txt"
-check "INSTALL.md: no admin/Zabbix/ClickHouse secret appears in any output or log" '! grep -rqF -e "$(cat "$W/admin.pw")" -e "$(cat "$W/zbx.pw")" -e "$(cat "$W/ch.pw")" "$W/out" "$W/doc-install.txt" "$W/sys/var/log" 2>/dev/null'
-check "INSTALL.md: the preset admin password is the one Grafana accepts" '[ "$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/folders)" = 200 ]'
-check "INSTALL.md: final state = 2 datasources, 7 dashboards, 1 playlist" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && [ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/playlists | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 1 ]'
+setup() { local r=0; rm -f "$W/sys/var/log/grafana-platform/setup-last-install.txt"; (cd "$CLONE" && env "${doc_env[@]}" ./install.sh "$@") < "$W/answers" > "$W/out" 2>&1 || r=$?
+          cp "$W/out" "$W/out.screen"; { echo "----- full installer output (log)"; cat "$W/sys/var/log/grafana-platform/setup-last-install.txt" 2>/dev/null; } >> "$W/out"; return $r; }
+mgf2() { curl -s -u "admin:$(cat "$W/admin.pw")" "http://127.0.0.1:$GF_PORT$1"; }
+count() { mgf2 "$1" | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"; }
+# answers, one per line: address, networks, protocol, Zabbix? URL, allow http?, user, WRONG password, try again?, user(keep), password,
+#                        ClickHouse?, admin password, map host names? + 7 names
+{ echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo; echo "http://127.0.0.1:$ZBX_PORT"; echo y; echo "$ZBX_USER"; echo wrong-password; echo; echo; cat "$W/zbx.pw"; echo
+  echo; cat "$W/admin.pw"; echo; echo
+  for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
+setup; rc=$?; cp "$W/out" "$W/setup-first.txt"
+check "sudo ./install.sh completes in one run (rc=$rc)" '[ $rc = 0 ] && out_has "Grafana is installed:  http://10.20.8.27:3000/"'
+check "the offline archive next to the clone was found, verified against the pins and unpacked" 'out_has "offline archive found: .*clone/grafana-platform-" && out_has "offline bundle unpacked from .* match the pins"'
+check "the Zabbix URL got /api_jsonrpc.php appended, HTTP was allowed only after the explicit question" 'grep -q "^ZABBIX_URL=$ZBX_URL$" /etc/grafana-platform/platform.env && grep -q "^ALLOW_INSECURE_DATASOURCES=yes$" /etc/grafana-platform/platform.env && out_has "uses plain HTTP: its password crosses the network unencrypted"'
+check "a wrong Zabbix password is caught BEFORE installing and asked again" 'out_has "login as $ZBX_USER failed" && out_has "testing login ... OK \(Zabbix 7.0.30"'
+check "Grafana HTTP chosen explicitly; no configuration file edited by hand" 'grep -q "^GRAFANA_PROTOCOL=http$" /etc/grafana-platform/platform.env && grep -q "^GRAFANA_ALLOW_INSECURE_HTTP=yes$" /etc/grafana-platform/platform.env'
+check "item map built automatically; the 7 production host names asked once; NOC dashboards deployed" 'out_has "These LAB router names are not in your Zabbix" && out_has "Zabbix: connected; NOC dashboards deployed" && mgf2 /api/dashboards/uid/noc-device-health | grep -q noc-device-health'
+check "ClickHouse skipped without blocking anything" 'out_has "ClickHouse: not connected -> add it with" && [ "$(count /api/search)" = 2 ]'
+check "secrets: mode 600, never in the output or logs" '[ "$(stat -c %a /etc/grafana-platform/secrets/zabbix-password)" = 600 ] && ! grep -rqF -e "$(cat "$W/zbx.pw")" -e "$(cat "$W/admin.pw")" -e wrong-password "$W/out" "$W/sys/var/log" 2>/dev/null'
+check "the admin password typed during setup is the one Grafana accepts" '[ "$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/folders)" = 200 ]'
+n_q=$(grep -c "(answered)\|(hidden)" "$W/out.screen"); check "number of questions on a first install: $n_q (incl. 1 retry and 7 host names)" '[ "$n_q" -le 22 ]'
+n_lines=$(wc -l < "$W/out.screen"); cp "$W/out.screen" "$W/setup-screen.txt"
+check "the operator sees a short screen: $n_lines lines for the whole first installation" '[ "$n_lines" -le 70 ]'
+
+section "Re-run: Enter keeps everything (safe, changes nothing) / --yes without any question"
+printf '\n' > "$W/answers"; setup; rc=$?
+check "re-run with Enter = keep: completes, nothing created or updated (rc=$rc)" '[ $rc = 0 ] && out_has "Keep these settings" && out_has "applied: 0 created, 0 updated"'
+: > "$W/answers"; setup --yes; rc=$?
+check "--yes re-run asks nothing and changes nothing (rc=$rc)" '[ $rc = 0 ] && out_lacks "\(answered\)" && out_has "applied: 0 created, 0 updated"'
+
+section "Add ClickHouse later: sudo ./install.sh --clickhouse"
+{ echo y; echo 127.0.0.1; echo; echo "$CH_PORT"; echo; cat "$W/ch.pw"; echo; } > "$W/answers"
+setup --clickhouse; rc=$?
+check "--clickhouse adds the datasource, 5 NetFlow dashboards and the playlist (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource netflow-clickhouse" && [ "$(count /api/search)" = 7 ] && [ "$(count /api/playlists)" = 1 ] && out_has "health: OK ClickHouse"'
+check "the earlier HTTP permission is reused, not asked again" 'out_lacks "Allow unencrypted"'
+
+section "Base Grafana without any integration, Zabbix added afterwards"
+reset_host; rm -rf /etc/grafana-platform /var/backups/* "$CLONE/bundle"
+{ echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo n; echo n; echo; } > "$W/answers"
+setup; rc=$?
+cp /etc/grafana-platform/secrets/admin-password "$W/admin.pw" 2>/dev/null
+check "Grafana installs with Zabbix AND ClickHouse not connected (rc=$rc)" '[ $rc = 0 ] && out_has "Zabbix: not connected" && [ "$(count /api/search)" = 0 ] && [ "$(mgf2 /api/datasources/uid/zabbix-lab | grep -c "\"uid\"")" = 0 ]'
+check "generated admin password: path shown, value not printed" 'out_has "password stored in /etc/grafana-platform/secrets/admin-password" && ! grep -qF "$(cat "$W/admin.pw")" "$W/out"'
+{ echo y; echo "http://127.0.0.1:$ZBX_PORT"; echo y; echo "$ZBX_USER"; cat "$W/zbx.pw"; echo; echo; for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
+setup --zabbix; rc=$?
+check "--zabbix later: datasource + NOC dashboards (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource zabbix-lab" && [ "$(count /api/search)" = 2 ]'
+
+section "Safety: no package anywhere -> stops before changing anything; tampered archive refused; pinned download works"
+reset_host; rm -rf /etc/grafana-platform "$CLONE/bundle" "$W/clone"/grafana-platform-*-offline.tar.gz
+{ echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo n; echo n; echo; } > "$W/answers"
+setup; rc=$?
+check "no bundle, no archive, no Internet: one clear message, nothing installed (rc=$rc)" '[ $rc != 0 ] && out_has "copy it next to install.sh" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
+head -c 1000 /dev/urandom | gzip > "$W/clone/grafana-platform-9.9.9-rhel9-offline.tar.gz"
+: > "$W/answers"; setup --yes; rc=$?
+check "an unusable archive is refused, never installed from (rc=$rc)" '[ $rc != 0 ] && out_has "not a readable offline archive|cannot be used" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
+rm -f "$W/clone"/grafana-platform-9.9.9-rhel9-offline.tar.gz
+SRC_ARCH=$ARCH; [ -n "${SIM_REAL_BUNDLE:-}" ] && [ -f "$SIM_REAL_BUNDLE" ] && SRC_ARCH=$SIM_REAL_BUNDLE
+mkdir -p "$W/dl" && cp "$SRC_ARCH" "$W/dl/offline.tar.gz"
+python3 -m http.server 18901 --bind 127.0.0.1 --directory "$W/dl" >/dev/null 2>&1 & BG+=($!); sleep 0.5
+env "${doc_env[@]}" "$CLONE/bin/grafana-platform" config set "BUNDLE_URL=http://127.0.0.1:18901/offline.tar.gz" "BUNDLE_URL_SHA256=$(printf 0%.0s $(seq 64))" > /dev/null 2>&1
+: > "$W/answers"; setup --yes; rc=$?
+check "download with a WRONG pinned SHA-256 is refused (rc=$rc)" '[ $rc != 0 ] && out_has "does not match its pinned SHA-256"'
+env "${doc_env[@]}" "$CLONE/bin/grafana-platform" config set "BUNDLE_URL_SHA256=$(sha256sum "$W/dl/offline.tar.gz" | cut -d" " -f1)" > /dev/null 2>&1
+setup --yes; rc=$?
+check "download with the right SHA-256: fetched once, verified, installed (rc=$rc)" '[ $rc = 0 ] && out_has "downloading the pinned offline bundle" && out_has "Grafana is installed"'
+
+section "Restore the full state for the rollback tests"
+reset_host; rm -rf /etc/grafana-platform /var/backups/*
+cp "$SRC_ARCH" "$W/clone/"
+{ echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo; echo "http://127.0.0.1:$ZBX_PORT"; echo y; echo "$ZBX_USER"; cat "$W/zbx.pw"; echo
+  echo y; echo 127.0.0.1; echo; echo "$CH_PORT"; echo; cat "$W/ch.pw"; echo; cat "$W/admin.pw"; echo; echo
+  for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
+setup; rc=$?
+check "everything in ONE run: Zabbix + ClickHouse + NOC + NetFlow (rc=$rc)" '[ $rc = 0 ] && [ "$(count /api/search)" = 7 ] && out_has "ClickHouse: connected"'
+REL=$CLONE
 
 section "Rollback: uninstall keeps configuration/secrets/data, reinstall restores the same state, --purge returns a clean host"
-dgp() { (cd "$REL" && env "${doc_env[@]}" "$@") > "$W/out" 2>&1; }
+dgp() { (cd "$CLONE" && env "${doc_env[@]}" "$@") > "$W/out" 2>&1; }
 dgp grafana-platform uninstall --yes; rc=$?
 check "uninstall succeeds (rc=$rc)" '[ $rc = 0 ] && out_has "UNINSTALL: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
 check "package, service, firewall rules, release and command link are gone" '! grep -q "^grafana " "$W/sys/state/rpmdb" && [ ! -e /usr/local/sbin/grafana-platform ] && [ ! -d "$W/sys/opt/grafana-platform" ] && [ ! -s "$W/sys/state/fw-rules" ] && ! [ -f "$W/sys/state/grafana.pid" -a -e "/proc/$(cat "$W/sys/state/grafana.pid" 2>/dev/null)" ]'
@@ -353,5 +401,5 @@ check "uninstall --purge (rc=$rc) removes configuration, secrets and data" '[ $r
 
 printf '\nSIMULATION: %d PASS, %d FAIL\n' "$PASSN" "$FAILN"
 [ "$FAILN" = 0 ] || { printf '  failed: %s\n' "${FAILED[@]}"; }
-if [ -n "${SIM_KEEP:-}" ]; then mkdir -p "$SIM_KEEP"; cp "$W"/doc-*.txt "$W"/v1-*.txt "$W"/preflight-*.txt "$W"/install-1.txt "$W"/verify-final.txt "$SIM_KEEP"/ 2>/dev/null; fi
+if [ -n "${SIM_KEEP:-}" ]; then mkdir -p "$SIM_KEEP"; cp "$W"/setup-*.txt "$W"/v1-*.txt "$W"/preflight-*.txt "$W"/install-1.txt "$W"/verify-final.txt "$SIM_KEEP"/ 2>/dev/null; fi
 [ "$FAILN" = 0 ]

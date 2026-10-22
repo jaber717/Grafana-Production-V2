@@ -1,4 +1,4 @@
-# Validation record — release 2.0.0 (Grafana-Production-V2)
+# Validation record — release 2.1.0 (Grafana-Production-V2)
 
 > **Scope of this evidence.** Everything here ran on a build machine (Ubuntu 24.04, bash 5.2, Python 3.13, Node.js 22 and the bundled 20.20.2)
 > **without** the LAB, without the production server, without a real Grafana, Zabbix or ClickHouse, and without a real RHEL host.
@@ -9,9 +9,9 @@
 
 | Suite | Command | Result | Raw output |
 |---|---|---|---|
-| Unit tests (8 from 1.0.1 + 16 new) | `node --test tests/unit/*.test.mjs` | **24 / 24 pass** | [evidence/unit-tests.txt](evidence/unit-tests.txt) |
-| Simulated RHEL 9.8 host, fake artifacts (exercises the bundle builder's mirror path incl. repository-metadata lookup and pin-mismatch abort) | `sudo tests/sim/run-sim.sh <1.0.1 checkout>` | **91 / 91 pass**, isolation check pass | [evidence/simulation-fake-artifacts.txt](evidence/simulation-fake-artifacts.txt) |
-| Simulated RHEL 9.8 host, **real pinned artifacts** (real plugin archives installed, real bundled Node.js v20.20.2 installed and used; pins unmodified) | `sudo SIM_REAL_BUNDLE=<1.0.1 offline archive> tests/sim/run-sim.sh <1.0.1 checkout>` | **89 / 89 pass**, isolation check pass | [evidence/simulation-real-artifacts.txt](evidence/simulation-real-artifacts.txt) |
+| Unit tests (8 from 1.0.1 + 17 new) | `node --test tests/unit/*.test.mjs` | **25 / 25 pass** | [evidence/unit-tests.txt](evidence/unit-tests.txt) |
+| Simulated RHEL 9.8 host, fake artifacts (exercises the bundle builder's mirror path incl. repository-metadata lookup and pin-mismatch abort) | `sudo tests/sim/run-sim.sh <1.0.1 checkout>` | **98 / 98 pass**, isolation check pass | [evidence/simulation-fake-artifacts.txt](evidence/simulation-fake-artifacts.txt) |
+| Simulated RHEL 9.8 host, **real pinned artifacts** (real plugin archives installed, real bundled Node.js v20.20.2 installed and used; pins unmodified) | `sudo SIM_REAL_BUNDLE=<1.0.1 offline archive> tests/sim/run-sim.sh <1.0.1 checkout>` | **96 / 96 pass**, isolation check pass | [evidence/simulation-real-artifacts.txt](evidence/simulation-real-artifacts.txt) |
 | Real artifacts vs. pins; real Grafana RPM signature with the vendored key (`rpmkeys -Kv`) | see file | SHA-256 of RPM, both plugins and Node.js **equal the 2.0 pins**; RPM signature **OK**, key ID `963fa27710458545` | [evidence/real-artifacts.txt](evidence/real-artifacts.txt) |
 | shellcheck (warning level) of every shell file | release gate stage 12 | clean | — |
 | Release gate (stages 1–12, includes the simulation) | `sudo GATE_V1_CHECKOUT=<1.0.1 checkout> scripts/release-gate.sh` | PASS | [evidence/release-gate.txt](evidence/release-gate.txt) |
@@ -45,8 +45,12 @@ Scenarios (each line in the evidence files is one assertion):
 8. **Idempotency** — second `install`: 0 created, 0 updated; `verify` 0 FAIL; preflight on the installed host needs no package source.
 9. **Partial item map** — FAIL with fix when not deferred; deferred = NOC dashboards skipped, nothing created.
 10. **No bundle, no Internet** — exactly one package FAIL, explaining the offline bundle.
-11. **INSTALL.md executed verbatim** — steps 2–7 extracted from the document and run (placeholders replaced): all succeed; no secret in any output or log;
-    the preset admin password is accepted by Grafana; final state 2 datasources, 7 dashboards, 1 playlist.
+11. **`sudo ./install.sh` (2.1)** — from a git clone **without** bundle, with an offline archive next to it: archive auto-found, verified, unpacked;
+    16 answers (incl. one wrong Zabbix password caught before installing, and 7 router host names for the item map); Zabbix URL completed with
+    `/api_jsonrpc.php`; HTTP only after explicit consent; NOC dashboards deployed; ClickHouse skipped without blocking; no secret in any output or log;
+    operator screen ≤ 70 lines ([evidence/install-sh-first-run-screen.txt](evidence/install-sh-first-run-screen.txt)). Re-run with Enter and `--yes`: nothing changed.
+    `--clickhouse` later adds datasource + 5 NetFlow dashboards + playlist; base Grafana with **no** integration, then `--zabbix`; no package anywhere →
+    stops before any change with the one file to copy; unusable archive refused; download with a wrong SHA-256 refused, with the right one installed.
 12. **Rollback** — `uninstall` removes package/service/rules/release/link and keeps configuration+secrets+map; reinstall restores the state; `--purge` removes everything but backups.
 
 ## Not covered here

@@ -13,7 +13,7 @@ test -f /etc/grafana-platform/release.json && echo "MANAGED 1.x install exists" 
 
 ### A. No Grafana installed (the reported situation: 1.x stopped at preflight, nothing was changed)
 
-Nothing to migrate. Follow [INSTALL.md](../INSTALL.md) from step 1. The 1.x checkout in `/root/Grafana` is not used any more; leave it or delete it.
+Nothing to migrate: run `sudo ./install.sh` ([INSTALL.md](../INSTALL.md)). The 1.x checkout in `/root/Grafana` is not used any more; leave it or delete it.
 Your 1.x environment file can be reused instead of step 2:
 
 ```bash

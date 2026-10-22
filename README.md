@@ -3,7 +3,7 @@
 Dashboards-as-code **and** a production installer for Grafana OSS **13.2.3** (Zabbix app 6.8.0, ClickHouse datasource 4.22.0):
 seven dashboards (UIDs preserved), two folders, two datasources, one playlist.
 
-> **Grafana-Production-V2 — release 2.0.0.** Independent continuation of `jaber717/Grafana` 1.0.1 (that repository is unchanged).
+> **Grafana-Production-V2 — release 2.1.0.** Independent continuation of `jaber717/Grafana` 1.0.1 (that repository is unchanged).
 > Same dashboards, UIDs, datasources and pinned versions; corrected installer for the isolated RHEL 9 production server.
 > **Install: [INSTALL.md](INSTALL.md)** · why 1.0.1 failed: [docs/ROOT-CAUSE-V2.md](docs/ROOT-CAUSE-V2.md) · migration: [docs/MIGRATION-FROM-V1.md](docs/MIGRATION-FROM-V1.md) ·
 > rollback: [docs/ROLLBACK.md](docs/ROLLBACK.md) · evidence: [docs/VALIDATION-V2.md](docs/VALIDATION-V2.md) (**simulated host only**) · still to prove live: [docs/LIVE-VERIFICATION.md](docs/LIVE-VERIFICATION.md)
@@ -14,20 +14,15 @@ seven dashboards (UIDs preserved), two folders, two datasources, one playlist.
 | **LAB (unchanged)** | grafana-01, Debian 12 LXC — `lab/scripts/*-lxc.sh`, API tools `scripts/apply.sh`, `verify.sh` · [docs/LAB-VS-PRODUCTION.md](docs/LAB-VS-PRODUCTION.md) |
 | **Evidence** | 2.0: [docs/VALIDATION-V2.md](docs/VALIDATION-V2.md) (unit tests + simulated RHEL 9.8 host). 1.0.1: [docs/VALIDATION-RHEL9.md](docs/VALIDATION-RHEL9.md) (RHEL 9.6 acceptance as recorded by that release) |
 
-> **2.0.0 has not yet been run on a real RHEL host.** It was built and tested while the LAB was unavailable, against a simulated RHEL 9.8 host.
+> **2.x has not yet been run on a real RHEL host.** It was built and tested while the LAB was unavailable, against a simulated RHEL 9.8 host.
 
-## Production in short (details and placeholders: [INSTALL.md](INSTALL.md))
+## Install
 
 ```bash
-tools/build-offline-bundle.sh dist                                   # once, on a machine with Internet -> copy the archive to the server
-tar xzf grafana-platform-2.0.0-rhel9-offline.tar.gz && cd grafana-platform-2.0.0
-bin/grafana-platform init-env GRAFANA_DOMAIN=… ZABBIX_URL=… ZABBIX_USER=… …     # configuration in one line, validated
-bin/grafana-platform secret set zabbix-password                      # prompted, never echoed
-bin/grafana-platform preflight && bin/grafana-platform install       # every FAIL prints its fix
-grafana-platform item-map && grafana-platform apply                  # NOC dashboards; ClickHouse later: INSTALL.md step 6
+sudo ./install.sh
 ```
 
-Afterwards: `grafana-platform verify | status | apply | backup | restore | upgrade | rollback | rotate-secrets | uninstall`.
+One command, a few questions, everything else automatic — see **[INSTALL.md](INSTALL.md)**. Later: `sudo grafana-platform setup --zabbix | --clickhouse | --reconfigure`, `sudo grafana-platform verify`.
 
 ## Repository map
 

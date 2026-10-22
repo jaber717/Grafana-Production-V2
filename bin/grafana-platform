@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # grafana-platform — install, verify and operate Grafana OSS on RHEL 9.x from this repository (native RPM + systemd).
 #
-# Setup (no file editing needed):
+# Standard installation — ONE command, it asks only what it needs:   sudo ./install.sh      (= grafana-platform setup)
+#   grafana-platform setup [--zabbix|--clickhouse|--reconfigure|--yes]   interactive install / re-run / add an integration later
+#
+# Advanced (the setup runs these for you):
 #   grafana-platform init-env [<file>] [KEY=VALUE ...] create the environment file (default: env/production.env of this release) in one line
 #   grafana-platform config set KEY=VALUE ... [--env-file F]   change settings (validated; misspelled keys are refused)
 #   grafana-platform config show|check [--env-file F]  show the effective settings / validate the file
@@ -44,9 +47,14 @@ LIBDIR="$RELEASE_DIR/lib"
 . "$LIBDIR/ops.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/commands.sh"
+# shellcheck disable=SC1091
+. "$LIBDIR/bundle.sh"
+# shellcheck disable=SC1091
+. "$LIBDIR/setup.sh"
 
 cmd=${1:-}; [ $# -gt 0 ] && shift
 case "$cmd" in
+  setup)     parse_common_args "$@"; cmd_setup ;;
   preflight) parse_common_args "$@"; load_env; run_preflight "read-only" ;;
   install)   parse_common_args "$@"; cmd_install ;;
   apply)     parse_common_args "$@"; cmd_apply ;;

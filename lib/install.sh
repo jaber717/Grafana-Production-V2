@@ -1,12 +1,15 @@
 # shellcheck shell=bash
 # Idempotent installation steps. Every step checks the current state first and changes nothing when it already matches.
 
-PREREQS=(curl tar xz unzip openssl sqlite policycoreutils-python-utils python3 python3-dnf-plugin-versionlock gnupg2)
+PREREQS_REQUIRED="curl tar xz unzip openssl python3 gnupg2"
+PREREQS_OPTIONAL="sqlite python3-dnf-plugin-versionlock policycoreutils-python-utils"
+optional_purpose() { case "$1" in sqlite) echo "backups (sqlite3)" ;; python3-dnf-plugin-versionlock) echo "the dnf version lock" ;; *) echo "SELinux relabel helpers" ;; esac; }
 
 ensure_prereqs() {
   local missing=() p
-  for p in "${PREREQS[@]}"; do rpm -q "$p" >/dev/null 2>&1 || missing+=("$p"); done
-  if [ "${#missing[@]}" -gt 0 ]; then info "installing prerequisites: ${missing[*]}"; dnf -y -q install "${missing[@]}" >/dev/null; fi
+  for p in $PREREQS_REQUIRED; do rpm -q "$p" >/dev/null 2>&1 || missing+=("$p"); done
+  if [ "${#missing[@]}" -gt 0 ]; then info "installing prerequisites: ${missing[*]}"; dnf -y -q install "${missing[@]}" </dev/null >/dev/null || die "could not install: ${missing[*]} (enable RHEL BaseOS/AppStream)"; fi
+  for p in $PREREQS_OPTIONAL; do rpm -q "$p" >/dev/null 2>&1 || dnf -y -q install "$p" </dev/null >/dev/null 2>&1 || warn "optional $p not installed: $(optional_purpose "$p") unavailable"; done
   pass "prerequisites present"
 }
 
@@ -287,6 +290,7 @@ cmd_install() {
   if [ "$FAIL_N" -gt 0 ]; then summary "PREFLIGHT"; die "preflight failed: nothing was changed"; fi
   info "state: $PLATFORM_STATE"
   [ "$PLATFORM_STATE" = CONFLICT ] && die "conflicting installation"
+  step "Package source"; prepare_packages
   PASS_N=0; WARN_N=0; FAIL_N=0; CONFIG_CHANGED=0; PLUGINS_CHANGED=0
   step "Prerequisites"; ensure_prereqs; ensure_node
   step "Grafana package"; import_rpm_key; install_grafana; lock_version

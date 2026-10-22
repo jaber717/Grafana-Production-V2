@@ -39,7 +39,7 @@
   [PASS] missing zabbix-password FAIL carries the exact command
   [PASS] clickhouse-password is NOT required while NetFlow is deferred
   [PASS] offline bundle found automatically: no rpm.grafana.com/grafana.com FAIL
-  [PASS] missing item map FAIL offers item-map or deferral
+  [PASS] missing item map is NOT a blocker any more: NOC dashboards deferred (WARN)
   [PASS] Zabbix reachability probed read-only
   [PASS] every FAIL line is followed by a fix line
 
@@ -87,25 +87,42 @@
   [PASS] partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs, NOC dashboards deferred (rc=0)
 
 ### 2.0 repo mode on an isolated host: one FAIL, with the way out
-  [PASS] no bundle + no Internet -> ONE package FAIL that explains the offline bundle
+  [PASS] no bundle + no Internet -> ONE package FAIL that says which single file to copy
 
-### INSTALL.md executed verbatim (placeholders replaced by simulation values; real /etc paths inside the namespace)
-  [PASS] INSTALL.md step 2: bin/grafana-platform init-env GRAFANA_DOMAIN=10.20.8.27 GRAFANA_PROTOCOL=http GRAFANA_ALLOW_INSECURE_HTTP=yes ...  (rc=0)
-  [PASS] INSTALL.md step 3: bin/grafana-platform secret set zabbix-password  (rc=0)
-  [PASS] INSTALL.md step 3: bin/grafana-platform secret set admin-password  (rc=0)
-  [PASS] INSTALL.md step 3: bin/grafana-platform zabbix-check  (rc=0)
-  [PASS] INSTALL.md step 4: bin/grafana-platform preflight && bin/grafana-platform install  (rc=0)
-  [PASS] INSTALL.md step 5: 'grafana-platform item-map' reports the incomplete map and lists the LAB host names (rc=0)
-  [PASS] INSTALL.md step 5: grafana-platform item-map --host SITE-A=RYD-SITE-A,SITE-B=RYD-SITE-B,STC=RYD-STC,MOBILY=RYD-MOBILY,INT-CORE=RY...  (rc=0)
-  [PASS] INSTALL.md step 5d: grafana-platform config set ALLOW_NOC_WITHOUT_ITEM_MAP=no && grafana-platform apply  (rc=0)
-  [PASS] INSTALL.md step 6: grafana-platform config set CLICKHOUSE_ENABLED=yes CLICKHOUSE_HOST=127.0.0.1 CLICKHOUSE_PORT=18123 CLICKHOUSE_...  (rc=0)
-  [PASS] INSTALL.md step 6: grafana-platform secret set clickhouse-password  (rc=0)
-  [PASS] INSTALL.md step 6: grafana-platform apply  (rc=0)
-  [PASS] INSTALL.md step 7: grafana-platform verify  (rc=0)
-  [PASS] INSTALL.md step 7: grafana-platform status  (rc=0)
-  [PASS] INSTALL.md: no admin/Zabbix/ClickHouse secret appears in any output or log
-  [PASS] INSTALL.md: the preset admin password is the one Grafana accepts
-  [PASS] INSTALL.md: final state = 2 datasources, 7 dashboards, 1 playlist
+### ONE command: sudo ./install.sh from a git clone WITHOUT bundle; the offline archive lies next to it (auto-found, verified, unpacked)
+  [PASS] sudo ./install.sh completes in one run (rc=0)
+  [PASS] the offline archive next to the clone was found, verified against the pins and unpacked
+  [PASS] the Zabbix URL got /api_jsonrpc.php appended, HTTP was allowed only after the explicit question
+  [PASS] a wrong Zabbix password is caught BEFORE installing and asked again
+  [PASS] Grafana HTTP chosen explicitly; no configuration file edited by hand
+  [PASS] item map built automatically; the 7 production host names asked once; NOC dashboards deployed
+  [PASS] ClickHouse skipped without blocking anything
+  [PASS] secrets: mode 600, never in the output or logs
+  [PASS] the admin password typed during setup is the one Grafana accepts
+  [PASS] number of questions on a first install: 16 (incl. 1 retry and 7 host names)
+  [PASS] the operator sees a short screen: 65 lines for the whole first installation
+
+### Re-run: Enter keeps everything (safe, changes nothing) / --yes without any question
+  [PASS] re-run with Enter = keep: completes, nothing created or updated (rc=0)
+  [PASS] --yes re-run asks nothing and changes nothing (rc=0)
+
+### Add ClickHouse later: sudo ./install.sh --clickhouse
+  [PASS] --clickhouse adds the datasource, 5 NetFlow dashboards and the playlist (rc=0)
+  [PASS] the earlier HTTP permission is reused, not asked again
+
+### Base Grafana without any integration, Zabbix added afterwards
+  [PASS] Grafana installs with Zabbix AND ClickHouse not connected (rc=0)
+  [PASS] generated admin password: path shown, value not printed
+  [PASS] --zabbix later: datasource + NOC dashboards (rc=0)
+
+### Safety: no package anywhere -> stops before changing anything; tampered archive refused; pinned download works
+  [PASS] no bundle, no archive, no Internet: one clear message, nothing installed (rc=1)
+  [PASS] an unusable archive is refused, never installed from (rc=1)
+  [PASS] download with a WRONG pinned SHA-256 is refused (rc=1)
+  [PASS] download with the right SHA-256: fetched once, verified, installed (rc=0)
+
+### Restore the full state for the rollback tests
+  [PASS] everything in ONE run: Zabbix + ClickHouse + NOC + NetFlow (rc=0)
 
 ### Rollback: uninstall keeps configuration/secrets/data, reinstall restores the same state, --purge returns a clean host
   [PASS] uninstall succeeds (rc=0)
@@ -115,5 +132,5 @@
   [PASS] reinstalled state is complete again: 7 dashboards
   [PASS] uninstall --purge (rc=0) removes configuration, secrets and data
 
-SIMULATION: 89 PASS, 0 FAIL
+SIMULATION: 96 PASS, 0 FAIL
   [PASS] isolation: host os-release, users/groups and /usr/local are unchanged

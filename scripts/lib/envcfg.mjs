@@ -59,10 +59,12 @@ export function substitute(node, env) {
   return node.replace(/@@([A-Z0-9_]+)@@/g, (_, n) => get(n));
 }
 
-/** Datasource uids this environment does not deploy (CLICKHOUSE_ENABLED=no defers the ClickHouse/NetFlow part). */
+/** Datasource uids this environment does not deploy (ZABBIX_ENABLED=no / CLICKHOUSE_ENABLED=no). */
 export function deferredDatasources(env) {
-  return flag(env, 'CLICKHOUSE_ENABLED', true) ? [] : ['netflow-clickhouse'];
+  return [...(flag(env, 'ZABBIX_ENABLED', true) ? [] : ['zabbix-lab']), ...(flag(env, 'CLICKHOUSE_ENABLED', true) ? [] : ['netflow-clickhouse'])];
 }
+const ENABLER = { 'zabbix-lab': 'ZABBIX_ENABLED', 'netflow-clickhouse': 'CLICKHOUSE_ENABLED' };
+export const deferReason = (uid) => `${ENABLER[uid] || 'configuration'}=no`;
 
 /** config/datasources.tmpl.json rendered with the environment (deferred datasources are left out, so their settings may be empty). */
 export function renderDatasources(env, root = ROOT) {

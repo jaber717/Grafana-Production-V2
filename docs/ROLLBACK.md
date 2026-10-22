@@ -1,4 +1,4 @@
-# Rollback procedures (release 2.0)
+# Rollback procedures (release 2.x)
 
 Every procedure below starts with a backup or keeps one. Nothing here touches Zabbix or ClickHouse (Grafana only reads them).
 
@@ -24,7 +24,7 @@ grafana-platform uninstall --yes
 Reinstall later from the unpacked release — same configuration, same data, no questions:
 
 ```bash
-cd /root/grafana-platform-2.0.0 && bin/grafana-platform install
+cd /root/grafana-platform-2.1.0 && sudo ./install.sh --yes
 ```
 
 Complete removal including configuration, secrets and the Grafana database (backups in `/var/backups/grafana-platform` are still kept):

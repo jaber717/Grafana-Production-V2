@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.1.0] - 2026-10-22
+
+**One-command installation.** No change to dashboards, UIDs, datasource templates or any pin.
+
+### Added
+* `install.sh` / `grafana-platform setup`: the single entry point. Asks only address, allowed networks, http/https, Zabbix (optional), ClickHouse (optional) and the admin password; writes `/etc/grafana-platform/platform.env` and the secrets itself; tests the Zabbix login and ClickHouse `/ping` **before** installing (retry or skip); installs; builds the Zabbix item map and asks for differing router host names; prints a short summary. Re-run = Enter keeps everything; `--zabbix`, `--clickhouse`, `--reconfigure`, `--yes`.
+* Automatic package source: `bundle/`, or any `grafana-platform-*-rhel9-offline.tar.gz` near the release or in `/root` (including the published 1.0.1 archive), or rpm.grafana.com, or a one-time download of the pinned archive (`BUNDLE_FALLBACK_URL`, SHA-256 pinned; custom `BUNDLE_URL` requires `BUNDLE_URL_SHA256`). Every artifact verified against this release's pins.
+* `ZABBIX_ENABLED` (Zabbix becomes optional like ClickHouse); `lib/probe.py` (read-only connection tests, no Node needed).
+
+### Changed (fewer blockers, same protections)
+* NOC dashboards are deferred by default when the item map is missing or incomplete (`ALLOW_NOC_WITHOUT_ITEM_MAP` default `yes`; `no` restores the strict check). Never deployed half-mapped.
+* SELinux not Enforcing: WARN instead of FAIL (Grafana runs unconfined on RHEL either way). Optional tools (sqlite for backups, versionlock plugin, SELinux helpers) only warn; the dnf repository count is no longer checked on its own.
+* Still blocking: wrong OS/arch/root, firewalld inactive, package not obtainable or not matching its pins, missing required tools, disk, port, foreign Grafana, invalid certificate, insecure transport without explicit consent.
+
 ## [2.0.0] - 2026-10-22
 
 First release of **Grafana-Production-V2**, an independent continuation of `jaber717/Grafana` 1.0.1 (commit `7c5b9f9`; that repository is not modified).
