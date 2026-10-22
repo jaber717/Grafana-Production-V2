@@ -12,3 +12,5 @@ dist/
 bundle/
 env/production.env
 *.previous
+__pycache__/
+*.pyc

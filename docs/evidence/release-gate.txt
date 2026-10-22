@@ -1,6 +1,6 @@
-# scripts/release-gate.sh on commit 207a1111ebfc5a5cd14b843ae769400f9ddd48b4 (2026-10-22T18:28:03Z), GATE_V1_CHECKOUT=jaber717/Grafana@7c5b9f9, as root
+# scripts/release-gate.sh on commit 41b319d (2026-10-22T21:10:22Z), GATE_V1_CHECKOUT=jaber717/Grafana@7c5b9f9, as root
 == 1. shell syntax
-[PASS] 25 shell scripts checked
+[PASS] 28 shell scripts checked
 == 2. JavaScript syntax
 [PASS] 20 .mjs files checked
 == 3-5. content consistency
@@ -14,9 +14,9 @@
 [PASS] dashboard inventory current
 [PASS] NetFlow generator reproduces the committed dashboards
 == 9. version
-[PASS] VERSION 2.0.0 has a CHANGELOG entry
+[PASS] VERSION 2.1.0 has a CHANGELOG entry
 == 10. unit tests
-[PASS] unit tests pass (24)
+[PASS] unit tests pass (25)
 == 11. production environment template and pins
 [PASS] env/production.env.example has no LAB addresses
 [PASS] env/production.env.example carries no secrets
@@ -25,9 +25,9 @@
 [PASS] Grafana RPM SHA-256 pinned
 [PASS] required documents present
 == 12. release 2.0: environment parser, shell lint, simulated RHEL host
-[PASS] lib/envparse.py compiles
+[PASS] lib/envparse.py, lib/probe.py compile
 [PASS] env/production.env.example is valid for the parser
 [PASS] shellcheck (warning level) clean
-[PASS] simulated RHEL 9.8 host: 91 PASS, 0 FAIL, 1 isolation check  (SIMULATION ONLY)
+[PASS] simulated RHEL 9.8 host: 98 PASS, 0 FAIL, 1 isolation check  (SIMULATION ONLY)
 
 RELEASE GATE: PASS (0 skipped)
