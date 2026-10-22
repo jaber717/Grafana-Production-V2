@@ -14,13 +14,14 @@ count_tool_lines() { # read tool output on stdin, print it and count [PASS]/[WAR
 
 verify_all() {
   step "Platform and security baseline"
-  . /etc/os-release
+  # shellcheck disable=SC1090
+  . "$OS_RELEASE_FILE"
   [ "$ID" = rhel ] && [[ "$VERSION_ID" == 9.* ]] && pass "OS: Red Hat Enterprise Linux $VERSION_ID" || { [ "${PLATFORM_ALLOW_EL_CLONE:-no}" = yes ] && warn "OS: $ID $VERSION_ID (EL clone allowed for acceptance testing)" || fail "OS: $ID $VERSION_ID is not RHEL 9.x"; }
   [ "$(getenforce)" = Enforcing ] && pass "SELinux Enforcing" || fail "SELinux is $(getenforce)"
   systemctl is-active --quiet firewalld && pass "firewalld active" || fail "firewalld inactive"
   local avc; avc=$(ausearch -m avc,user_avc -ts boot -c grafana-server 2>/dev/null | grep -c 'type=AVC' || true)
   [ "${avc:-0}" = 0 ] && pass "no SELinux denials for grafana-server since boot" || fail "$avc SELinux denial(s) for grafana-server since boot (ausearch -m avc -c grafana-server)"
-  info "SELinux domain of the grafana process: $(ps -o label= -C grafana 2>/dev/null | head -1) (RHEL ships no Grafana policy; see docs/SECURITY.md)"
+  info "SELinux domain of the grafana process: $(ps -o label= -C grafana 2>/dev/null | head -1) (RHEL ships no Grafana policy; see docs/SECURITY-PRODUCTION.md)"
 
   step "Package"
   local cur want; cur=$(installed_version); want=$(want_version)
@@ -57,7 +58,7 @@ verify_all() {
   chk_mode() { local m; m=$(mode_of "$1"); case " $2 " in *" $m "*) pass "$1 mode $m owner $(owner_of "$1")" ;; *) fail "$1 has mode $m (expected $2)" ;; esac; }
   chk_mode "$GRAFANA_ETC/grafana.ini" "640 600 440"
   chk_mode "$SECRETS_DIR/admin-password" "640 600 440"; chk_mode "$SECRETS_DIR/secret-key" "640 600 440"
-  chk_mode "$SECRETS_DIR/zabbix-password" "600 400"; chk_mode "$SECRETS_DIR/clickhouse-password" "600 400"
+  chk_mode "$SECRETS_DIR/zabbix-password" "600 400"; clickhouse_enabled && chk_mode "$SECRETS_DIR/clickhouse-password" "600 400"
   [ "$GRAFANA_PROTOCOL" = https ] && chk_mode "$GRAFANA_ETC/tls/grafana.key" "640 600 440"
   [ -f "$GRAFANA_VAR/grafana.db" ] && [ "$(owner_of "$GRAFANA_VAR/grafana.db")" = grafana:grafana ] && pass "database owned by grafana, mode $(mode_of "$GRAFANA_VAR/grafana.db")" || fail "database missing or wrong owner"
   grep -rIlE 'password *= *[^$ ]' "$GRAFANA_ETC/grafana.ini" >/dev/null 2>&1 && fail "grafana.ini contains a literal password" || pass "grafana.ini holds no literal password"
@@ -73,7 +74,7 @@ verify_all() {
   done < <(sed 's/#.*//' "$RELEASE_DIR/plugins/plugins.txt" | awk 'NF')
 
   step "Content (dashboards, folders, datasources, playlist)"
-  count_tool_lines < <(run_content_tool verify --env-file "$ENV_FILE_USED" --item-map "$ZABBIX_ITEM_MAP_FILE" 2>&1 || true)
+  count_tool_lines < <(run_content_tool verify --item-map "$ZABBIX_ITEM_MAP_FILE" 2>&1 || true)
 
   step "Operations"
   local last; last=$(ls -1t "$BACKUP_DIR"/grafana-platform-*.tar.gz* 2>/dev/null | head -1 || true)
@@ -91,7 +92,7 @@ cmd_status() {
   printf 'endpoint: %s   health: %s\n' "$(base_url)" "$(curl_local "$(base_url)/api/health" 2>/dev/null | tr -d '\n ' || echo unreachable)"
   [ "$GRAFANA_PROTOCOL" = https ] && printf 'cert    : %s\n' "$(openssl x509 -in "$GRAFANA_ETC/tls/grafana.crt" -noout -enddate 2>/dev/null)"
   printf 'backups : %s (newest: %s)\n' "$BACKUP_DIR" "$(ls -1t "$BACKUP_DIR"/grafana-platform-*.tar.gz* 2>/dev/null | head -1 | xargs -r basename)"
-  printf 'content : '; run_content_tool verify --env-file "$ENV_FILE_USED" --item-map "$ZABBIX_ITEM_MAP_FILE" 2>&1 | tail -1
+  printf 'content : '; run_content_tool verify --item-map "$ZABBIX_ITEM_MAP_FILE" 2>&1 | tail -1
   python3 -c 'import json;d=json.load(open("'"$RELEASE_JSON"'"));print("release : installed",d.get("installed_at"),"updated",d.get("updated_at"),"last_upgrade",d.get("last_upgrade"))' 2>/dev/null || true
 }
 
@@ -268,7 +269,7 @@ cmd_upgrade() {
   PASS_N=0; WARN_N=0; FAIL_N=0; CONFIG_CHANGED=0; PLUGINS_CHANGED=0
   step "Backup before upgrade"; make_backup pre-upgrade; pass "pre-upgrade backup: $BACKUP_LAST"
   local bk=$BACKUP_LAST
-  if [ "$PACKAGE_SOURCE" = repo ]; then mkdir -p "$BACKUP_DIR/rpm"; (dnf -q download --destdir "$BACKUP_DIR/rpm" "grafana-$cur" </dev/null >/dev/null 2>&1 && pass "previous RPM cached for rollback") || warn "could not cache the previous RPM (rollback will download it from the repository)"; fi
+  if [ "$PKG_SRC" = repo ]; then mkdir -p "$BACKUP_DIR/rpm"; (dnf -q download --destdir "$BACKUP_DIR/rpm" "grafana-$cur" </dev/null >/dev/null 2>&1 && pass "previous RPM cached for rollback") || warn "could not cache the previous RPM (rollback will download it from the repository)"; fi
   set_last_upgrade "$cur" "$want" "$bk"
   step "Upgrade"
   if ( upgrade_inner "$want" ); then
@@ -290,7 +291,7 @@ rollback_inner() { # $1 archive $2 version-release to return to
   dnf -q versionlock delete grafana >/dev/null 2>&1 || true
   local rpmf; rpmf=$(ls -1 "$BACKUP_DIR"/rpm/grafana-"$ver".x86_64.rpm 2>/dev/null | head -1 || true)
   if [ -n "$rpmf" ]; then rpm -K "$rpmf" 2>&1 | grep -qi 'OK' && dnf -y -q downgrade "$rpmf" </dev/null >/dev/null || die "could not downgrade from the cached RPM"
-  elif [ "$PACKAGE_SOURCE" = bundle ] && [ -f "$BUNDLE_DIR/rpm/grafana-$ver.x86_64.rpm" ]; then dnf -y -q downgrade "$BUNDLE_DIR/rpm/grafana-$ver.x86_64.rpm" </dev/null >/dev/null
+  elif [ "$PKG_SRC" = bundle ] && [ -f "$BUNDLE_DIR/rpm/grafana-$ver.x86_64.rpm" ]; then dnf -y -q downgrade "$BUNDLE_DIR/rpm/grafana-$ver.x86_64.rpm" </dev/null >/dev/null
   else dnf -y -q downgrade "grafana-$ver" </dev/null >/dev/null || die "could not downgrade to grafana-$ver (no cached RPM, repository unavailable?)"; fi
   [ "$(installed_version)" = "$ver" ] && pass "package returned to grafana-$ver" || die "package is $(installed_version) after the downgrade attempt"
   dnf -q versionlock add "grafana-$ver" >/dev/null 2>&1 || true
@@ -333,7 +334,7 @@ cmd_rollback() {
 cmd_rotate_secrets() {
   require_root; load_env; log_to_file rotate-secrets
   [ -f "$RELEASE_JSON" ] || die "not a managed installation"
-  info "writing the passwords from $SECRETS_DIR/{zabbix,clickhouse}-password into the datasources"
-  run_content_tool apply --rotate-secrets --env-file "$ENV_FILE_USED" --item-map "$ZABBIX_ITEM_MAP_FILE" | grep -aE 'datasource|health|applied' || true
+  info "writing the passwords from the secret files ($(required_secrets | tr '\n' ' ')) into the datasources"
+  run_content_tool apply --rotate-secrets --item-map "$ZABBIX_ITEM_MAP_FILE" | grep -aE 'datasource|health|applied' || true
   step "Verification"; verify_all; summary "ROTATE-SECRETS"
 }

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SIMULATION: firewalld rich rules kept in a file
+f="$SIM_STATE/fw-rules"; touch "$f"
+rule=""; for a in "$@"; do case "$a" in --*-rich-rule=*) rule=${a#*=} ;; esac; done
+case "$*" in
+  *--get-default-zone*) echo public ;;
+  *--query-rich-rule*) grep -qxF "$rule" "$f" ;;
+  *--add-rich-rule*) echo "$rule" >> "$f" ;;
+  *--remove-rich-rule*) grep -vxF "$rule" "$f" > "$f.n"; mv "$f.n" "$f" ;;
+  *--list-rich-rules*) cat "$f" ;;
+  *--query-port*) exit 1 ;;
+  *--list-ports*) echo "" ;;
+  *) exit 0 ;;
+esac

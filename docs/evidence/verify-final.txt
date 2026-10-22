@@ -1,0 +1,67 @@
+
+== Platform and security baseline
+[PASS] OS: Red Hat Enterprise Linux 9.8
+[PASS] SELinux Enforcing
+[PASS] firewalld active
+[PASS] no SELinux denials for grafana-server since boot
+       SELinux domain of the grafana process: system_u:system_r:unconfined_service_t:s0 (RHEL ships no Grafana policy; see docs/SECURITY-PRODUCTION.md)
+
+== Package
+[PASS] grafana-13.2.3-1 installed (pinned 13.2.3-1)
+[PASS] RPM signature: Grafana Labs key 963FA27710458545
+[PASS] packaged files unmodified (rpm -V)
+[PASS] version lock present
+
+== Service and network
+[PASS] grafana-server active
+[PASS] grafana-server enabled at boot
+[PASS] runs as the unprivileged user 'grafana'
+[PASS] listening on 3000/tcp
+[PASS] firewalld admits 3000/tcp only by source rule
+[PASS] port is not opened unrestricted
+[PASS] grafana listens on no other TCP port
+[PASS] /api/health ok over http
+[WARN] HTTP only: credentials and cookies are unencrypted
+[PASS] Grafana reports version 13.2.3
+
+== Files, secrets and permissions
+[PASS] /tmp/gp-sim.yb6KzO/sys/etc/grafana/grafana.ini mode 640 owner root:grafana
+[PASS] /tmp/gp-sim.yb6KzO/sys/etc/grafana-platform/secrets/admin-password mode 640 owner root:grafana
+[PASS] /tmp/gp-sim.yb6KzO/sys/etc/grafana-platform/secrets/secret-key mode 640 owner root:grafana
+[PASS] /tmp/gp-sim.yb6KzO/sys/etc/grafana-platform/secrets/zabbix-password mode 600 owner root:root
+[PASS] /tmp/gp-sim.yb6KzO/sys/etc/grafana-platform/secrets/clickhouse-password mode 600 owner root:root
+[PASS] database owned by grafana, mode 644
+[PASS] grafana.ini holds no literal password
+[PASS] unique secret_key from file (not the packaged default)
+[PASS] SELinux label of the database: ?
+
+== Plugins
+[PASS] plugin alexanderzobnin-zabbix-app 6.8.0
+[PASS] plugin grafana-clickhouse-datasource 4.22.0
+
+== Content (dashboards, folders, datasources, playlist)
+[PASS] health - database=ok
+[PASS] Grafana version - live 13.2.3, repository 13.2.3
+[PASS] plugin alexanderzobnin-zabbix-app - live 6.8.0, repository 6.8.0
+[PASS] plugin grafana-clickhouse-datasource - live 4.22.0, repository 4.22.0
+[PASS] folder netflow - title "NetFlow"
+[PASS] folder noc - title "NOC"
+[PASS] datasource netflow-clickhouse definition
+[PASS] datasource netflow-clickhouse health - ClickHouse /ping OK
+[PASS] datasource zabbix-lab definition
+[PASS] datasource zabbix-lab health - Zabbix API login OK as sim-grafana-ro
+[PASS] dashboard netflow-asn - folder netflow, live version 1
+[PASS] dashboard netflow-exporters - folder netflow, live version 1
+[PASS] dashboard netflow-health - folder netflow, live version 1
+[PASS] dashboard netflow-overview - folder netflow, live version 1
+[PASS] dashboard netflow-top-talkers - folder netflow, live version 1
+[PASS] dashboard noc-device-health - folder noc, live version 1
+[PASS] dashboard noc-wan-overview - folder noc, live version 1
+[PASS] playlist "NetFlow NOC Rotation"
+[PASS] alert rules - 0 rule(s) live; this repository manages none (none existed at capture)
+
+== Operations
+[WARN] no backup exists yet in /tmp/gp-sim.yb6KzO/sys/backups
+[PASS] journal: 1 error line(s) in the last 30 min
+
+VERIFY: 48 PASS, 2 WARN, 0 FAIL

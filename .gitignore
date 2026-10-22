@@ -8,3 +8,7 @@ backups/
 node_modules/
 *password*
 !.env.example
+dist/
+bundle/
+env/production.env
+*.previous

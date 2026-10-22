@@ -18,7 +18,7 @@ function mockZabbix(hosts, items) {
         if (req.headers.authorization !== 'Bearer test-token' && q.method !== 'apiinfo.version') { res.end(JSON.stringify({ jsonrpc: '2.0', error: { message: 'Not authorised' }, id: q.id })); return; }
         let result;
         if (q.method === 'apiinfo.version') result = '7.0.30';
-        else if (q.method === 'host.get') result = hosts.filter((h) => q.params.filter.host.includes(h.host));
+        else if (q.method === 'host.get') result = hosts.filter((h) => (q.params.filter.host || []).includes(h.host) || (q.params.filter.name || []).includes(h.name || h.host));
         else if (q.method === 'item.get') result = items.filter((i) => q.params.hostids.includes(i.hostid) && q.params.filter.key_.includes(i.key_));
         else { res.end(JSON.stringify({ jsonrpc: '2.0', error: { message: 'method not allowed in test' }, id: q.id })); return; }
         res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ jsonrpc: '2.0', result, id: q.id }));

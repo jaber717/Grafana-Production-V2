@@ -4,24 +4,44 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from './grafana.mjs';
 
-/** Parse KEY=VALUE lines (no shell evaluation, no expansion). '#' comments and blank lines ignored; optional single/double quotes stripped. */
+/** Parse KEY=VALUE lines (no shell evaluation, no expansion) with the SAME rules as lib/envparse.py (the bash side):
+ *  BOM / CRLF / non-breaking spaces tolerated, '#' comment lines, optional 'export ', blanks around '=' allowed,
+ *  "double" or 'single' quoted values (only a # comment may follow the closing quote), unquoted values end at a blank-preceded '#'.
+ *  grafana-platform hands these tools an already normalized file; this parser stays strict so LAB use behaves identically. */
 export function parseEnv(text) {
   const out = {};
-  for (const raw of text.split(/\r?\n/)) {
-    const l = raw.trim();
-    if (!l || l.startsWith('#')) continue;
-    const m = l.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!m) throw new Error(`unparsable line in env file: ${l.slice(0, 40)}`);
-    let v = m[2].trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-    else v = v.replace(/\s+#.*$/, '');
-    out[m[1]] = v;
-  }
+  const clean = text.replace(/^\uFEFF/, '').replace(/[\u00A0\u2007\u202F]/g, ' ');
+  clean.split(/\r\n|\r|\n/).forEach((raw, i) => {
+    const where = `line ${i + 1}`;
+    let l = raw.trim();
+    if (!l || l.startsWith('#')) return;
+    l = l.replace(/^export\s+/, '');
+    const eq = l.indexOf('=');
+    if (eq < 0) throw new Error(`unparsable line in env file (${where}): ${l.slice(0, 40)}`);
+    const key = l.slice(0, eq).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`unparsable line in env file (${where}): ${l.slice(0, 40)}`);
+    if (key in out) throw new Error(`${key} is set twice in the env file (${where})`);
+    let v = l.slice(eq + 1).trim();
+    if (/^[\u201C\u201D\u2018\u2019\u00AB\u00BB]/.test(v)) throw new Error(`${key}: typographic quote in the env file (${where}); use plain quotes`);
+    if (v.startsWith('"') || v.startsWith("'")) {
+      const end = v.indexOf(v[0], 1);
+      if (end < 0) throw new Error(`${key}: unterminated quote (${where})`);
+      const rest = v.slice(end + 1).trim();
+      if (rest && !rest.startsWith('#')) throw new Error(`${key}: unexpected text after the closing quote (${where})`);
+      v = v.slice(1, end);
+    } else {
+      v = v.replace(/\s#.*$/, '').trim();
+      if (v.startsWith('#')) v = '';
+    }
+    out[key] = v;
+  });
   return out;
 }
 export function loadEnvFile(path) { return parseEnv(readFileSync(path, 'utf8')); }
 
-const toBool = (v, name) => { if (/^(true|yes|1)$/i.test(v)) return true; if (/^(false|no|0)$/i.test(v)) return false; throw new Error(`${name} must be true/false (got "${v}")`); };
+export const toBool = (v, name) => { if (/^(true|yes|on|1)$/i.test(String(v).trim())) return true; if (/^(false|no|off|0)$/i.test(String(v).trim())) return false; throw new Error(`${name} must be true/false (got "${v}")`); };
+/** A yes/no setting with a default (empty or missing = default). */
+export const flag = (env, name, dflt) => (env[name] === undefined || env[name] === '' ? dflt : toBool(env[name], name));
 
 /** Replace "@@NAME@@", "@@NAME:int@@", "@@NAME:bool@@" string values in a parsed JSON structure. Unknown / empty required values throw. */
 export function substitute(node, env) {
@@ -39,9 +59,27 @@ export function substitute(node, env) {
   return node.replace(/@@([A-Z0-9_]+)@@/g, (_, n) => get(n));
 }
 
-/** config/datasources.tmpl.json rendered with the environment. */
+/** Datasource uids this environment does not deploy (CLICKHOUSE_ENABLED=no defers the ClickHouse/NetFlow part). */
+export function deferredDatasources(env) {
+  return flag(env, 'CLICKHOUSE_ENABLED', true) ? [] : ['netflow-clickhouse'];
+}
+
+/** config/datasources.tmpl.json rendered with the environment (deferred datasources are left out, so their settings may be empty). */
 export function renderDatasources(env, root = ROOT) {
-  return substitute(JSON.parse(readFileSync(join(root, 'config', 'datasources.tmpl.json'), 'utf8')), env);
+  const off = new Set(deferredDatasources(env));
+  return JSON.parse(readFileSync(join(root, 'config', 'datasources.tmpl.json'), 'utf8')).filter((d) => !off.has(d.uid)).map((d) => substitute(d, env));
+}
+
+/** Every datasource uid a dashboard references (built-in pseudo datasources excluded). */
+export function datasourceRefs(dash) {
+  const refs = new Set();
+  (function walk(o) {
+    if (!o || typeof o !== 'object') return;
+    if (o.datasource && typeof o.datasource === 'object' && o.datasource.uid) refs.add(o.datasource.uid);
+    Object.values(o).forEach(walk);
+  })(dash);
+  for (const r of [...refs]) if (r === '__expr__' || r === 'grafana' || r.startsWith('-- ') || r.startsWith('${')) refs.delete(r);
+  return [...refs];
 }
 
 // ---- Zabbix item map ----------------------------------------------------------------------------------------------

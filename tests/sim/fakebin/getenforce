@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# SIMULATION: SELinux state of the simulated RHEL host
+echo "${SIM_SELINUX:-Enforcing}"

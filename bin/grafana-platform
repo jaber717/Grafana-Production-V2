@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
 # grafana-platform — install, verify and operate Grafana OSS on RHEL 9.x from this repository (native RPM + systemd).
 #
-#   grafana-platform preflight  [--env-file F]            read-only readiness checks
-#   grafana-platform install    [--env-file F]            idempotent: FRESH install or MANAGED re-converge; refuses CONFLICT
-#   grafana-platform verify                               PASS/WARN/FAIL health, security and content verification
-#   grafana-platform status                               one-screen summary
-#   grafana-platform backup     [--include-secrets]       consistent archive (database + config + content export)
-#   grafana-platform restore    <archive> [--yes]         restore an archive (saves the current state first)
-#   grafana-platform upgrade    [--yes]                   move to the Grafana version pinned in this release (backup first, auto-rollback)
-#   grafana-platform rollback   [<archive>] [--yes]       return to the state saved by the last upgrade
-#   grafana-platform rotate-secrets                       push changed zabbix-password / clickhouse-password files into the datasources
+# Setup (no file editing needed):
+#   grafana-platform init-env [<file>] [KEY=VALUE ...] create the environment file (default: env/production.env of this release) in one line
+#   grafana-platform config set KEY=VALUE ... [--env-file F]   change settings (validated; misspelled keys are refused)
+#   grafana-platform config show|check [--env-file F]  show the effective settings / validate the file
+#   grafana-platform secret set zabbix-password|clickhouse-password   store a secret (prompted, never echoed)
+#   grafana-platform secret status                     which secrets exist (values are never shown)
+#   grafana-platform zabbix-check  [--env-file F]      read-only Zabbix API login test with the stored secret
+#   grafana-platform item-map      [--env-file F] [--host LAB=PROD ...] [--set LABID=ID ...] [--search WORD]
+#                                                      build /etc/grafana-platform/zabbix-item-map.json for the NOC dashboards
+# Lifecycle:
+#   grafana-platform preflight  [--env-file F]         read-only readiness checks; every FAIL prints its fix
+#   grafana-platform install    [--env-file F]         idempotent: FRESH install or MANAGED re-converge; refuses CONFLICT
+#   grafana-platform apply                             re-apply datasources, dashboards and playlist (after enabling ClickHouse / item map)
+#   grafana-platform verify                            PASS/WARN/FAIL health, security and content verification
+#   grafana-platform status                            one-screen summary
+#   grafana-platform backup     [--include-secrets]    consistent archive (database + config + content export)
+#   grafana-platform restore    <archive> [--yes]      restore an archive (saves the current state first)
+#   grafana-platform upgrade    [--yes]                move to the Grafana version pinned in this release (backup first, auto-rollback)
+#   grafana-platform rollback   [<archive>] [--yes]    return to the state saved by the last upgrade
+#   grafana-platform rotate-secrets                    push changed zabbix-password / clickhouse-password files into the datasources
+#   grafana-platform uninstall  [--yes] [--purge]      remove Grafana (backup first); keeps config, secrets and data unless --purge
 #   grafana-platform version
 #
-# Run as root. The release (this directory) is copied to /opt/grafana-platform/releases/<version> by `install`, and this command is linked
-# to /usr/local/sbin/grafana-platform.
+# Run as root. The release (this directory, including an offline bundle in ./bundle) is copied to /opt/grafana-platform/releases/<version>
+# by `install`, and this command is linked to /usr/local/sbin/grafana-platform.
 set -euo pipefail
 set -o errtrace
 
@@ -30,11 +42,14 @@ LIBDIR="$RELEASE_DIR/lib"
 . "$LIBDIR/install.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/ops.sh"
+# shellcheck disable=SC1091
+. "$LIBDIR/commands.sh"
 
 cmd=${1:-}; [ $# -gt 0 ] && shift
 case "$cmd" in
   preflight) parse_common_args "$@"; load_env; run_preflight "read-only" ;;
   install)   parse_common_args "$@"; cmd_install ;;
+  apply)     parse_common_args "$@"; cmd_apply ;;
   verify)    parse_common_args "$@"; cmd_verify ;;
   status)    parse_common_args "$@"; cmd_status ;;
   backup)    parse_common_args "$@"; cmd_backup ;;
@@ -42,7 +57,13 @@ case "$cmd" in
   upgrade)   parse_common_args "$@"; cmd_upgrade ;;
   rollback)  parse_common_args "$@"; cmd_rollback ;;
   rotate-secrets) parse_common_args "$@"; cmd_rotate_secrets ;;
+  init-env)  parse_common_args "$@"; cmd_init_env ;;
+  config)    parse_common_args "$@"; cmd_config ;;
+  secret|secrets) parse_common_args "$@"; cmd_secret ;;
+  zabbix-check) parse_common_args "$@"; cmd_zabbix_check ;;
+  item-map)  parse_common_args "$@"; cmd_item_map ;;
+  uninstall) parse_common_args "$@"; cmd_uninstall ;;
   version)   echo "grafana-platform $(cat "$RELEASE_DIR/VERSION") (Grafana $GRAFANA_VERSION, plugins: $(awk '!/^#/ && NF {printf "%s@%s ", $1, $2}' "$RELEASE_DIR/plugins/plugins.txt"))" ;;
-  ""|-h|--help|help) sed -n '2,20p' "$SELF" ;;
+  ""|-h|--help|help) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$SELF" ;;
   *) echo "unknown command: $cmd (try --help)" >&2; exit 2 ;;
 esac

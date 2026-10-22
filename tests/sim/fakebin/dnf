@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# SIMULATION: RHEL repositories reachable (Satellite/ISO); installing the bundled grafana RPM reproduces what the real package does
+db="$SIM_STATE/rpmdb"; touch "$db"
+echo "dnf $*" >> "$SIM_STATE/dnf.log"
+args=(); for a in "$@"; do case "$a" in -y|-q) ;; *) args+=("$a") ;; esac; done
+case "${args[0]:-}" in
+  repolist) echo "repo id              repo name"; echo "rhel-9-for-x86_64-baseos-rpms   Red Hat Enterprise Linux 9 BaseOS (Satellite)" ;;
+  list) exit 0 ;;
+  install|downgrade)
+    for a in "${args[@]:1}"; do
+      case "$a" in
+        *grafana-*.rpm)
+          f=$(basename "$a"); vr=${f#grafana-}; vr=${vr%.x86_64.rpm}
+          sed -i '/^grafana /d' "$db"; echo "grafana $vr" >> "$db"
+          getent group grafana >/dev/null || groupadd -r grafana; getent passwd grafana >/dev/null || useradd -r -g grafana -d /usr/share/grafana -s /sbin/nologin grafana
+          install -d -m 0755 "$GP_GRAFANA_ETC" "$GP_GRAFANA_ETC/provisioning"; install -d -o grafana -g grafana -m 0755 "$GP_GRAFANA_VAR"
+          [ -f "$GP_GRAFANA_ETC/grafana.ini" ] || printf '; packaged default grafana.ini (simulated)\n' > "$GP_GRAFANA_ETC/grafana.ini"
+          [ -f "$GP_GRAFANA_VAR/grafana.db" ] || { : > "$GP_GRAFANA_VAR/grafana.db"; chown grafana:grafana "$GP_GRAFANA_VAR/grafana.db"; } ;;
+        *) echo "$a 1.0-1.el9" >> "$db" ;;
+      esac
+    done ;;
+  remove) for a in "${args[@]:1}"; do sed -i "/^$a /d" "$db"; done ;;
+  versionlock)
+    case "${args[1]:-}" in
+      add) echo "${args[2]}" >> "$SIM_STATE/versionlock" ;;
+      delete) sed -i "/^${args[2]%%-[0-9]*}-/d" "$SIM_STATE/versionlock" 2>/dev/null ;;
+      list) cat "$SIM_STATE/versionlock" 2>/dev/null ;;
+    esac ;;
+  *) exit 0 ;;
+esac

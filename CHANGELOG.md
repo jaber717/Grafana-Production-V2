@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0] - 2026-10-22
+
+First release of **Grafana-Production-V2**, an independent continuation of `jaber717/Grafana` 1.0.1 (commit `7c5b9f9`; that repository is not modified).
+**No change to any dashboard, dashboard/folder/datasource UID, datasource template, plugin or Grafana version pin.** Root causes: [docs/ROOT-CAUSE-V2.md](docs/ROOT-CAUSE-V2.md).
+
+### Fixed
+* `ALLOW_INSECURE_DATASOURCES=yes` not honored: one strict parser (`lib/envparse.py`) for bash and Node. 1.x silently dropped indented lines containing `#`, compared case-sensitively, ignored unknown/misspelled keys and accepted duplicates; 2.0 accepts yes/no/true/false/on/off/1/0 in any case and turns every ambiguity into an error naming the line and the fix. The key is now in the template.
+* Offline installation: `PACKAGE_SOURCE=auto` (default) uses `<release>/bundle` automatically; `BUNDLE_DIR` defaults to it; the bundle is deployed with the release and the RPM cached for rollbacks; package sources are checked only when something must be installed; one FAIL instead of two.
+* Item map: the 7 previously unresolved descriptors (SNMP uptime behind the "UP" signal) resolve through standard template keys (REVIEW output); production host names via `--host`; partial maps can be deferred.
+* `install` aborted when `clickhouse-password` was absent; Node.js on RHEL 9 (old default stream installed before the module stream was selected); "read-only" preflight created `/var/lib/grafana`; playlist referenced undeployed dashboards.
+
+### Added
+* Commands: `init-env` (configuration in one line), `config set|show|check|keys` (validated edits, previous file kept), `secret set|status` (prompted, never echoed), `zabbix-check`, `item-map`, `apply`, `uninstall [--purge]`.
+* Deferral without broken objects: `CLICKHOUSE_ENABLED=no` (no ClickHouse datasource, NetFlow dashboards or playlist, no ClickHouse secret); `ALLOW_NOC_WITHOUT_ITEM_MAP=yes` also for incomplete maps.
+* Every preflight FAIL is followed by a `-> fix:` line with the exact command; read-only reachability probes for Zabbix (`apiinfo.version`) and ClickHouse (`/ping`).
+* `tools/zabbix-item-map.mjs`: user/password login with the datasource credentials (session per Zabbix version, logout), `--host`, `--set`, `--merge`, `--search`, `--check`, request timeouts.
+* Offline builder: finds the RPM through the repository metadata when it is not at `/Packages/`; overridable download bases (tests).
+* Tests: `tests/unit/v2-*.test.mjs` (parser parity bash/Node, deferral, item-map tool), `tests/sim/run-sim.sh` (simulated RHEL 9.8 host, executes INSTALL.md verbatim, reproduces the 1.0.1 failure); release gate runs shellcheck and the simulation.
+* Documents: `INSTALL.md`, `docs/ROOT-CAUSE-V2.md`, `docs/MIGRATION-FROM-V1.md`, `docs/ROLLBACK.md`, `docs/LIVE-VERIFICATION.md`, `docs/VALIDATION-V2.md`.
+
+### Known limitations
+Not yet run on a real RHEL host, real Grafana, the production Zabbix or ClickHouse; the offline bundle was not built against the real download sites (they were unreachable from the build environment). See [docs/LIVE-VERIFICATION.md](docs/LIVE-VERIFICATION.md).
+
 ## [1.0.1] - 2026-10-11
 
 RHEL 9 production platform. **No change to any dashboard, UID, datasource definition or plugin version** (a unit test proves the LAB environment renders the captured LAB datasources byte-for-byte).

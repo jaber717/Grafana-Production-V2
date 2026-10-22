@@ -14,7 +14,8 @@
 // Duplicates: a dashboard whose TITLE already exists in the target folder under a DIFFERENT uid is refused (it would show up twice)
 // unless --allow-title-conflicts is given.
 import { api, get, URL_, parseArgs, readJson, repoPlugins, normalizeDashboard, canonical, dsComparable, ApiError, fail } from './lib/grafana.mjs';
-import { loadContext, effectiveDashboards } from './lib/content.mjs';
+import { loadContext, effectiveDashboards, effectivePlaylists } from './lib/content.mjs';
+import { deferredDatasources } from './lib/envcfg.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const CTX = loadContext(args);
@@ -56,6 +57,7 @@ if (!args['skip-dashboards'] && !args['datasource-only']) {
 
 // ---- datasources -----------------------------------------------------------------------------------------------
 if (!args['skip-datasources']) {
+  for (const uid of deferredDatasources(CTX.env)) say('skipped', `datasource ${uid}: deferred by configuration (CLICKHOUSE_ENABLED=no)`);
   for (const want of CTX.datasources.map(sandbox)) {
     const cur = await get(`/api/datasources/uid/${want.uid}`, { allow404: true });
     const envName = SECRET_ENV[want.uid];
@@ -105,7 +107,8 @@ if (!args['skip-dashboards']) {
 // ---- playlists -------------------------------------------------------------------------------------------------
 if (!args['skip-playlists']) {
   const lists = await get('/api/playlists');
-  for (const want of readJson('config/playlists.json')) {
+  for (const { playlist: want, state, reason } of effectivePlaylists(CTX)) {
+    if (state !== 'ok') { say('skipped', `playlist "${want.name}": ${reason}`); continue; }
     const hit = lists.find((p) => p.name === want.name);
     if (!hit) { await act(() => api('POST', '/api/playlists', want)); say('created', `playlist "${want.name}"`); continue; }
     const cur = await get(`/api/playlists/${hit.uid}`);

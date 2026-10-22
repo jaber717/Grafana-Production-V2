@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: lab.env.example renders to exactly the datasource definitions captured from the running grafana-01
+ok 1 - lab.env.example renders to exactly the datasource definitions captured from the running grafana-01
+  ---
+  duration_ms: 9.864943
+  type: 'test'
+  ...
+# Subtest: production example renders with TLS verification on and no LAB addresses
+ok 2 - production example renders with TLS verification on and no LAB addresses
+  ---
+  duration_ms: 0.656561
+  type: 'test'
+  ...
+# Subtest: missing or invalid values fail loudly
+ok 3 - missing or invalid values fail loudly
+  ---
+  duration_ms: 0.585204
+  type: 'test'
+  ...
+# Subtest: parseEnv handles comments, quotes and refuses garbage
+ok 4 - parseEnv handles comments, quotes and refuses garbage
+  ---
+  duration_ms: 0.917435
+  type: 'test'
+  ...
+# Subtest: item map rewrites only queryType 3 itemids and reports unmapped ids
+ok 5 - item map rewrites only queryType 3 itemids and reports unmapped ids
+  ---
+  duration_ms: 0.42472
+  type: 'test'
+  ...
+# Subtest: loadItemMap returns null for a missing file
+ok 6 - loadItemMap returns null for a missing file
+  ---
+  duration_ms: 0.185582
+  type: 'test'
+  ...
+# Subtest: every Zabbix item used by the shipped NOC dashboards has a descriptor
+ok 7 - every Zabbix item used by the shipped NOC dashboards has a descriptor
+  ---
+  duration_ms: 2.24857
+  type: 'test'
+  ...
+# Subtest: item map tool resolves host+key to the target ids, reports gaps, uses only read-only methods
+ok 8 - item map tool resolves host+key to the target ids, reports gaps, uses only read-only methods
+  ---
+  duration_ms: 163.329711
+  type: 'test'
+  ...
+# Subtest: bash/python and Node parse every corpus line to the same value
+ok 9 - bash/python and Node parse every corpus line to the same value
+  ---
+  duration_ms: 420.947269
+  type: 'test'
+  ...
+# Subtest: yes/no settings accept every common spelling and are normalized
+ok 10 - yes/no settings accept every common spelling and are normalized
+  ---
+  duration_ms: 607.295553
+  type: 'test'
+  ...
+# Subtest: misspelled, unknown, duplicate and invalid settings are errors with the reason
+ok 11 - misspelled, unknown, duplicate and invalid settings are errors with the reason
+  ---
+  duration_ms: 332.632552
+  type: 'test'
+  ...
+# Subtest: envparse.py set edits one key in place, keeps comments, refuses invalid results
+ok 12 - envparse.py set edits one key in place, keeps comments, refuses invalid results
+  ---
+  duration_ms: 70.233153
+  type: 'test'
+  ...
+# Subtest: the shipped production template is valid for the parser and lists every setting
+ok 13 - the shipped production template is valid for the parser and lists every setting
+  ---
+  duration_ms: 70.573669
+  type: 'test'
+  ...
+# Subtest: CLICKHOUSE_ENABLED=no: no ClickHouse datasource (its settings may be empty), NetFlow dashboards and playlist deferred
+ok 14 - CLICKHOUSE_ENABLED=no: no ClickHouse datasource (its settings may be empty), NetFlow dashboards and playlist deferred
+  ---
+  duration_ms: 14.793207
+  type: 'test'
+  ...
+# Subtest: CLICKHOUSE_ENABLED=yes (default): both datasources, all dashboards, full playlist
+ok 15 - CLICKHOUSE_ENABLED=yes (default): both datasources, all dashboards, full playlist
+  ---
+  duration_ms: 14.534503
+  type: 'test'
+  ...
+# Subtest: NOC dashboards: a missing OR partial item map is refused, or deferred with ALLOW_NOC_WITHOUT_ITEM_MAP=yes - never deployed half-mapped
+ok 16 - NOC dashboards: a missing OR partial item map is refused, or deferred with ALLOW_NOC_WITHOUT_ITEM_MAP=yes - never deployed half-mapped
+  ---
+  duration_ms: 30.180143
+  type: 'test'
+  ...
+# Subtest: datasourceRefs ignores expressions and finds the real datasources of each folder
+ok 17 - datasourceRefs ignores expressions and finds the real datasources of each folder
+  ---
+  duration_ms: 5.316677
+  type: 'test'
+  ...
+# Subtest: password login (7.x: header session), host rename, candidate key with REVIEW line, logout, read-only
+ok 18 - password login (7.x: header session), host rename, candidate key with REVIEW line, logout, read-only
+  ---
+  duration_ms: 177.635648
+  type: 'test'
+  ...
+# Subtest: Zabbix 6.0: "auth" in the body, and visible-name host matching
+ok 19 - Zabbix 6.0: "auth" in the body, and visible-name host matching
+  ---
+  duration_ms: 156.958959
+  type: 'test'
+  ...
+# Subtest: unresolvable items: exit 3, nothing guessed; --set and --merge complete the map without losing hand-set ids
+ok 20 - unresolvable items: exit 3, nothing guessed; --set and --merge complete the map without losing hand-set ids
+  ---
+  duration_ms: 473.494689
+  type: 'test'
+  ...
+# Subtest: --check: wrong password fails clearly; right password reports visible hosts
+ok 21 - --check: wrong password fails clearly; right password reports visible hosts
+  ---
+  duration_ms: 429.852848
+  type: 'test'
+  ...
+# Subtest: the shipped descriptors have no unresolved entry left: every NOC item can be resolved from Zabbix
+ok 22 - the shipped descriptors have no unresolved entry left: every NOC item can be resolved from Zabbix
+  ---
+  duration_ms: 0.998064
+  type: 'test'
+  ...
+# Subtest: Node: https to the local Grafana by DNS name and by IP literal, verified; wrong name refused
+ok 23 - Node: https to the local Grafana by DNS name and by IP literal, verified; wrong name refused
+  ---
+  duration_ms: 330.635367
+  type: 'test'
+  ...
+# Subtest: curl --connect-to: same three cases
+ok 24 - curl --connect-to: same three cases
+  ---
+  duration_ms: 42.925618
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4119.031891

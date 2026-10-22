@@ -1,5 +1,7 @@
 # Validation record — Grafana platform on RHEL 9 (release 1.0.1)
 
+> Historical record of release **1.0.1**, kept unchanged. Release 2.0.0 evidence: [VALIDATION-V2.md](VALIDATION-V2.md).
+
 ## Support statement
 * **Supported platform: Red Hat Enterprise Linux 9.x**, x86_64. `grafana-platform preflight` accepts any 9.x (subject to the actual dependency checks it performs), and **rejects RHEL 8, RHEL 10, other distributions and other architectures**. No minor version is hard-coded.
 * **Tested: RHEL 9.6** (`Red Hat Enterprise Linux release 9.6 (Plow)`, kernel 5.14.0-570.12.1.el9_6). Other RHEL 9.x releases are **supported targets that were not individually validated**; a failing preflight dependency check is the intended signal there.

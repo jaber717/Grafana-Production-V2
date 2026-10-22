@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# SIMULATION: answers the two questions verify asks about the grafana process
+if [[ "$*" == *"-C grafana"* ]]; then
+  pid=$(cat "$SIM_STATE/grafana.pid" 2>/dev/null) && kill -0 "$pid" 2>/dev/null || exit 1
+  case "$*" in *label=*) echo "system_u:system_r:unconfined_service_t:s0" ;; *) echo grafana ;; esac
+  exit 0
+fi
+exec /bin/ps "$@"

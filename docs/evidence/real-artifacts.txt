@@ -1,0 +1,38 @@
+# Real pinned artifacts — taken from the published 1.0.1 asset jaber717/Grafana releases/download/v1.0.1/grafana-platform-1.0.1-rhel9-offline.tar.gz
+# recorded 2026-10-22T18:25:21Z on the build machine (Ubuntu 24.04, rpm 4.18.2)
+$ sha256sum -c grafana-platform-1.0.1-rhel9-offline.tar.gz.sha256
+grafana-platform-1.0.1-rhel9-offline.tar.gz: OK
+
+$ sha256sum bundle/*/*   (compare: VERSIONS.env GRAFANA_RPM_SHA256 / NODE_BUNDLE_SHA256, plugins/plugins.txt)
+4fc2adc0912421b630696423d5c05ee2df560347fdb5e906a927fffc3201d066  rpm/grafana-13.2.3-1.x86_64.rpm
+121c752d9c6e4bb694b6247cfbed3395652f4ee3153f6236ddb525f4803a8931  plugins/alexanderzobnin-zabbix-app-6.8.0.zip
+2041f4c32160aeedc36c6e51cc996542b44c27f4595dd33546cb18018b30b8d8  plugins/grafana-clickhouse-datasource-4.22.0.zip
+df770b2a6f130ed8627c9782c988fda9669fa23898329a61a871e32f965e007d  node/node-v20.20.2-linux-x64.tar.xz
+
+$ rpmkeys --import vendor/rpm/RPM-GPG-KEY-grafana (temporary rpmdb) ; rpmkeys -Kv rpm/grafana-13.2.3-1.x86_64.rpm
+rpm/grafana-13.2.3-1.x86_64.rpm:
+    Header V4 RSA/SHA256 Signature, key ID 10458545: OK
+    Header SHA256 digest: OK
+    Header SHA1 digest: OK
+    Payload SHA256 digest: OK
+    MD5 digest: OK
+
+$ rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}  %{RSAHEADER:pgpsig}'
+grafana-13.2.3-1.x86_64  RSA/SHA256, Tue Sep 29 10:15:58 2026, Key ID 963fa27710458545
+
+$ rpm -qp --requires
+/bin/sh
+rpmlib(CompressedFileNames) <= 3.0.4-1
+rpmlib(FileDigests) <= 4.6.0-1
+rpmlib(PayloadFilesHavePrefix) <= 4.0-1
+rpmlib(PayloadIsXz) <= 5.2-1
+systemd
+
+$ plugin archive layout and versions
+alexanderzobnin-zabbix-app-6.8.0.zip: alexanderzobnin-zabbix-app/plugin.json -> alexanderzobnin-zabbix-app 6.8.0
+grafana-clickhouse-datasource-4.22.0.zip: grafana-clickhouse-datasource/plugin.json -> grafana-clickhouse-datasource 4.22.0
+
+$ bundled Node.js
+v20.20.2
+
+$ tools/build-offline-bundle.sh --from-bundle grafana-platform-1.0.1-rhel9-offline.tar.gz (network disabled)

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# SIMULATION: systemd for firewalld (always active) and grafana-server (runs tests/sim/mock-grafana.mjs with the rendered grafana.ini)
+q=0; args=(); for a in "$@"; do case "$a" in --quiet|-q|--no-pager|--now) [ "$a" = --now ] && now=1 || q=1 ;; *) args+=("$a") ;; esac; done
+verb=${args[0]:-}; unit=${args[1]:-}
+pidf="$SIM_STATE/grafana.pid"
+running() { local p; p=$(cat "$pidf" 2>/dev/null) && kill -0 "$p" 2>/dev/null; }
+start() {
+  running && return 0
+  "${SIM_NODE:-node}" "$SIM_DIR/mock-grafana.mjs" "$GP_GRAFANA_ETC/grafana.ini" "$SIM_STATE/grafana-state.json" >> "$SIM_STATE/grafana.log" 2>&1 < /dev/null &
+  echo $! > "$pidf"; disown
+  for _ in $(seq 50); do curl -s -m 1 "http://127.0.0.1:$(sed -n 's/^http_port = //p' "$GP_GRAFANA_ETC/grafana.ini")/api/health" >/dev/null 2>&1 && return 0; sleep 0.1; done
+}
+stop() { running && kill "$(cat "$pidf")" 2>/dev/null; for _ in $(seq 30); do running || break; sleep 0.1; done; rm -f "$pidf"; }
+case "$verb:$unit" in
+  is-active:firewalld) exit 0 ;;
+  is-active:grafana-server) running ;;
+  is-enabled:*) grep -qx "$unit" "$SIM_STATE/enabled" 2>/dev/null ;;
+  enable:*) echo "$unit" >> "$SIM_STATE/enabled"; [ "${now:-0}" = 1 ] && [ "$unit" = grafana-server ] && start; exit 0 ;;
+  start:grafana-server) start ;;
+  stop:grafana-server) stop; exit 0 ;;
+  restart:grafana-server) stop; start ;;
+  daemon-reload:*|start:*|stop:*|restart:*) exit 0 ;;
+  *) [ "$verb" = is-active ] && { echo inactive; exit 3; }; exit 0 ;;
+esac

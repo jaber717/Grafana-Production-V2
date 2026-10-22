@@ -1,30 +1,54 @@
 # Zabbix item map (NOC dashboards)
 
-The two NOC dashboards (`noc-device-health`, `noc-wan-overview`) query the Zabbix datasource by **numeric item id** (query type 3). Item ids belong to one Zabbix database, so the ids captured on the LAB Zabbix mean
-nothing on another server. This release therefore keeps, next to the dashboards, a **descriptor** for every item id used (`config/zabbix-item-descriptors.json`: host name + item key) and a tool that finds the same
-host + key on your Zabbix and writes `{ "<lab id>": "<your id>" }`. `grafana-platform` applies the map when it deploys the dashboards (ids are rewritten in memory; the files in Git never change).
+The two NOC dashboards (`noc-device-health`, `noc-wan-overview`) query the Zabbix datasource by **numeric item id** (query type 3): 47 items.
+Item ids belong to one Zabbix database, so the ids captured on the LAB Zabbix mean nothing on another server. This release keeps, next to the
+dashboards, a **descriptor** for every item id used (`config/zabbix-item-descriptors.json`: host name + item key) and a tool that finds the same
+host + key on your Zabbix and writes `{ "<lab id>": "<your id>" }`. `grafana-platform` applies the map in memory when it deploys the dashboards
+(the files in Git never change).
 
 ## Build the map (read-only against Zabbix)
-1. In Zabbix create a **read-only** user and an API token for it (never an admin token).
-2. On the Grafana server (or any host with Node.js ≥ 18 and the release):
-   ```bash
-   export ZABBIX_URL=https://zabbix.example.com/api_jsonrpc.php
-   export ZABBIX_TOKEN_FILE=/root/zbx-readonly.token            # file mode 600; the token never goes on a command line
-   export NODE_EXTRA_CA_CERTS=/root/zabbix-ca.pem               # only for a private CA
-   node tools/zabbix-item-map.mjs --out /etc/grafana-platform/zabbix-item-map.json
-   ```
-   The tool calls only `apiinfo.version`, `host.get` and `item.get`. It never guesses: a host or key that is missing or ambiguous is listed and the exit code is 3 (the file is still written with everything that resolved).
-3. Set `ZABBIX_ITEM_MAP_FILE=/etc/grafana-platform/zabbix-item-map.json` in the environment file and run `grafana-platform install`.
 
-## Hosts and keys the LAB dashboards expect
-The descriptors name the WAN-edge hosts (`SITE-A`, `SITE-B`, `STC`, `MOBILY`, …) and keys such as `icmpping` and `zabbix[host,snmp,available]`. Your Zabbix must have hosts with the **same technical host names**
-and the same item keys, or you edit `config/zabbix-item-descriptors.json` (host names) before building the map. Seven descriptors are marked `"unresolved": true` — the LAB items behind the "UP" tiles had no history when
-the repository was captured. Add the right production item ids for them by hand to the map file, e.g. `"51140": "98765"`.
+```bash
+grafana-platform item-map
+```
 
-## What `preflight` does with the map
-* every item id referenced by the NOC dashboards must be mapped → otherwise **FAIL** (nothing is installed);
-* `ALLOW_NOC_WITHOUT_ITEM_MAP=yes` deploys only the five NetFlow dashboards and reports the skipped NOC dashboards as **WARN** (the playlist keeps the dashboards that exist).
+It uses the datasource settings (`ZABBIX_URL`, `ZABBIX_USER`) and the `zabbix-password` secret — no extra API token. Methods called:
+`apiinfo.version`, `user.login`, `host.get`, `item.get`, `user.logout`. It never guesses: an item that cannot be resolved exactly once is listed
+and the exit code is 3; the file is still written (mode 0640) with everything that resolved.
 
-## Acceptance testing without a real Zabbix
-`tests/rhel/mock-zabbix.py` is a TLS stand-in that answers only `apiinfo.version`, `user.login` and trivial lists, and `tests/rhel/setup-grafana-test.sh` generates a synthetic map of fake ids. They exist so the install, datasource
-health and dashboard deployment can be tested on isolated machines with dummy credentials. They prove the mechanics; **they do not prove that the NOC panels show correct values** — that needs your production Zabbix.
+| Situation | Command |
+|---|---|
+| production host names differ from the LAB names (`SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B`) | `grafana-platform item-map --host SITE-A=<name>,SITE-B=<name>,...` (technical host name or visible name) |
+| look at what a host really has | `grafana-platform item-map --search <part of the host name>` (lists items with id, key, interval, last value time) |
+| set an id you verified yourself | `grafana-platform item-map --set <lab id>=<item id>` (repeatable; kept on later runs) |
+| map complete | `grafana-platform config set ALLOW_NOC_WITHOUT_ITEM_MAP=no && grafana-platform apply` |
+| not ready yet | `grafana-platform config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes` — both NOC dashboards are deferred (WARN), never deployed half-mapped |
+
+Every run merges with the existing file (`--merge`): ids set by hand survive.
+
+## The seven "UP" items (REVIEW)
+
+`noc-device-health` derives each router's SNMP badge from a fresh sample of its SNMP uptime (`refId UP`, freshness window 2 minutes). In the LAB
+these items had no history when the repository was captured, so 1.x shipped them as "unresolved". 2.0 describes them by host and a list of
+**candidate keys** used by the standard Zabbix SNMP templates, tried in order:
+`system.net.uptime[sysUpTime.0]`, `system.uptime[sysUpTime.0]`, `system.hw.uptime[hrSystemUptime.0]`. The first key that exists **exactly once**
+on that host is used and printed under **REVIEW**. Confirm in Zabbix that the chosen item is the router's uptime and is polled often enough
+(≤ 2 minutes); otherwise set the right id with `--set`.
+
+## Running the tool directly (any host with Node.js ≥ 18)
+
+```bash
+ZABBIX_URL=http://<zabbix>/api_jsonrpc.php ZABBIX_USER=<read-only user> ZABBIX_PASSWORD_FILE=/root/zbx.pw node tools/zabbix-item-map.mjs --out zabbix-item-map.json
+```
+`ZABBIX_TOKEN_FILE=<file>` instead of user/password uses an API token. Private CA: `NODE_EXTRA_CA_CERTS=/path/ca.pem`. Never put a password on the command line.
+
+## What `preflight` and `apply` do with the map
+
+* map covers all 47 ids → NOC dashboards deployed with your ids;
+* map missing or incomplete, `ALLOW_NOC_WITHOUT_ITEM_MAP=no` → **FAIL** with the two fix commands (nothing is installed);
+* map missing or incomplete, `ALLOW_NOC_WITHOUT_ITEM_MAP=yes` → both NOC dashboards **skipped** (WARN); NetFlow dashboards unaffected.
+
+## What the simulation proves and what it does not
+
+`tests/sim/run-sim.sh` resolves all 47 ids against a mock Zabbix 7.0 with renamed hosts. That proves the mechanics, **not** that your Zabbix has
+these keys or that the panels show correct values — see [LIVE-VERIFICATION.md](LIVE-VERIFICATION.md) items 7–8.

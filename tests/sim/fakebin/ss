@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# SIMULATION: only the mock Grafana listens
+pid=$(cat "$SIM_STATE/grafana.pid" 2>/dev/null) && kill -0 "$pid" 2>/dev/null || exit 0
+port=$(sed -n 's/^http_port = //p' "$GP_GRAFANA_ETC/grafana.ini" 2>/dev/null)
+case "$*" in *"sport = :"*) [[ "$*" == *":$port"* ]] || exit 0 ;; esac
+echo "LISTEN 0 4096 *:$port *:* users:((\"grafana\",pid=$pid,fd=10))"

@@ -1,5 +1,5 @@
 {
- "_comment": "LAB Zabbix items behind the NOC dashboards, resolved through the live datasource on 2026-10-10. A production Zabbix has different item ids: tools/zabbix-item-map.mjs resolves these host + item_key pairs there. Entries with unresolved=true had no data when captured and need a manual mapping.",
+ "_comment": "LAB Zabbix items behind the NOC dashboards, resolved through the live datasource on 2026-10-10. A production Zabbix has different item ids: tools/zabbix-item-map.mjs resolves these host + item_key pairs there. Entries with unresolved=true had no data when captured and need a manual mapping. Release 2.0: the seven former unresolved entries are the SNMP uptime items behind each router's 'UP' (SNMP freshness) signal; they carry item_key_candidates (standard Zabbix SNMP template keys) and resolve to the first candidate that exists exactly once on the host - the tool lists them under REVIEW.",
  "items": {
   "51128": {
    "host": "SITE-A",
@@ -7,7 +7,14 @@
    "item_key": "icmpping"
   },
   "51140": {
-   "unresolved": true,
+   "host": "SITE-A",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | SITE-A | UP"
    ]
@@ -23,7 +30,14 @@
    "item_key": "icmpping"
   },
   "51190": {
-   "unresolved": true,
+   "host": "SITE-B",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | SITE-B | UP"
    ]
@@ -39,7 +53,14 @@
    "item_key": "icmpping"
   },
   "51246": {
-   "unresolved": true,
+   "host": "STC",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | STC | UP"
    ]
@@ -55,7 +76,14 @@
    "item_key": "icmpping"
   },
   "51296": {
-   "unresolved": true,
+   "host": "MOBILY",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | MOBILY | UP"
    ]
@@ -71,7 +99,14 @@
    "item_key": "icmpping"
   },
   "51346": {
-   "unresolved": true,
+   "host": "INT-CORE",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | INT-CORE | UP"
    ]
@@ -87,7 +122,14 @@
    "item_key": "icmpping"
   },
   "51396": {
-   "unresolved": true,
+   "host": "SAIX-A",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | SAIX-A | UP"
    ]
@@ -103,7 +145,14 @@
    "item_key": "icmpping"
   },
   "51446": {
-   "unresolved": true,
+   "host": "SAIX-B",
+   "item": "SNMP uptime (sysUpTime)",
+   "item_key_candidates": [
+    "system.net.uptime[sysUpTime.0]",
+    "system.uptime[sysUpTime.0]",
+    "system.hw.uptime[hrSystemUptime.0]"
+   ],
+   "needs_review": true,
    "used_in": [
     "noc-device-health | SAIX-B | UP"
    ]

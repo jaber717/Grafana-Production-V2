@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Idempotent installation steps. Every step checks the current state first and changes nothing when it already matches.
 
-PREREQS=(curl tar xz unzip openssl sqlite policycoreutils-python-utils python3 python3-dnf-plugin-versionlock)
+PREREQS=(curl tar xz unzip openssl sqlite policycoreutils-python-utils python3 python3-dnf-plugin-versionlock gnupg2)
 
 ensure_prereqs() {
   local missing=() p
@@ -11,17 +11,23 @@ ensure_prereqs() {
 }
 
 ensure_node() {
-  if [ -n "$(node_bin)" ] && [ "$("$(node_bin)" -p 'process.versions.node.split(".")[0]')" -ge 18 ]; then pass "Node.js $("$(node_bin)" -v)"; return; fi
-  if [ "$PACKAGE_SOURCE" = bundle ] && [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ]; then
+  if [ -n "$(node_bin)" ]; then pass "Node.js $("$(node_bin)" -v)"; return; fi
+  # the pinned Node.js of the offline bundle is preferred whenever it is present: no dependency on AppStream module streams
+  if [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ]; then
     [ "$(sha256sum "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" | cut -d' ' -f1)" = "$NODE_BUNDLE_SHA256" ] || die "bundled Node.js tarball fails its pinned SHA-256: refusing to install"
     rm -rf "${OPT:?}/node"; mkdir -p "$OPT/node"; tar -xJf "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" -C "$OPT/node" --strip-components=1 --no-same-owner
     ln -sfn "$OPT/node/bin/node" /usr/local/bin/node
-    pass "Node.js $("$(node_bin)" -v) installed from the offline bundle (SHA-256 verified)"; return
+    pass "Node.js $("$(node_bin)" -v) installed to $OPT/node from the offline bundle (SHA-256 verified)"; return
   fi
-  dnf -y -q install nodejs >/dev/null 2>&1 || true
-  if [ -n "$(node_bin)" ] && [ "$("$(node_bin)" -p 'process.versions.node.split(".")[0]')" -ge 18 ]; then pass "Node.js $("$(node_bin)" -v) installed from AppStream"; return; fi
-  dnf -y -q module enable nodejs:20 >/dev/null 2>&1 && dnf -y -q install nodejs >/dev/null 2>&1 || true
-  [ -n "$(node_bin)" ] && [ "$("$(node_bin)" -p 'process.versions.node.split(".")[0]')" -ge 18 ] && pass "Node.js $("$(node_bin)" -v) installed (module nodejs:20)" || die "could not provide Node.js >= 18"
+  # AppStream: the default (non-modular) nodejs of RHEL 9 is too old for the tools, so the nodejs:20 module stream is selected explicitly.
+  # An existing older nodejs package is NOT replaced behind the operator's back (other software on the host may depend on it).
+  if rpm -q nodejs >/dev/null 2>&1; then
+    die "nodejs $(rpm -q --qf '%{VERSION}' nodejs) is installed but the tools need >= 18. Either put the offline bundle next to this release (preferred), or switch it yourself: dnf -y module switch-to nodejs:20"
+  fi
+  dnf -y -q module reset nodejs >/dev/null 2>&1 || true
+  dnf -y -q module enable nodejs:20 >/dev/null 2>&1 || true
+  dnf -y -q install nodejs </dev/null >/dev/null 2>&1 || true
+  [ -n "$(node_bin)" ] && pass "Node.js $("$(node_bin)" -v) installed from AppStream (module nodejs:20)" || die "could not provide Node.js >= 18 (AppStream nodejs:20 not available and no offline bundle at $BUNDLE_DIR)"
 }
 
 gpg_fingerprint() { GNUPGHOME=$(mktemp -d) gpg --batch --quiet --show-keys --with-colons "$1" 2>/dev/null | awk -F: '/^fpr/ {print $10; exit}'; }
@@ -42,7 +48,7 @@ install_grafana() {
   if [ "$cur" = "$want" ]; then pass "grafana-$want already installed"; return; fi
   if [ -n "$cur" ] && [ "$PLATFORM_STATE" != MANAGED ]; then die "grafana-$cur is installed and unmanaged"; fi
   install -d -m 0755 "$ETC"; date -u +%FT%TZ > "$ETC/.install-started"   # lets an interrupted install be resumed instead of being reported as a foreign Grafana
-  if [ "$PACKAGE_SOURCE" = repo ]; then
+  if [ "$PKG_SRC" = repo ]; then
     cat > /etc/yum.repos.d/grafana-platform.repo <<EOF
 # managed by grafana-platform - signed repository metadata and packages, restricted to the grafana package
 [grafana-platform]
@@ -61,10 +67,11 @@ EOF
     pkill -x gpg-agent 2>/dev/null || true; pkill -x scdaemon 2>/dev/null || true
   else
     local rpmf="$BUNDLE_DIR/rpm/grafana-$want.x86_64.rpm"
-    [ -f "$rpmf" ] || die "offline bundle has no $rpmf"
+    [ -f "$rpmf" ] || die "offline bundle has no $rpmf (build the bundle from this release: tools/build-offline-bundle.sh)"
     local out; out=$(rpm -K "$rpmf" 2>&1) || die "RPM signature check failed: $out"
     echo "$out" | grep -qiE 'digests signatures OK|signatures ok|pgp.*OK' || die "RPM is not signed by an imported key: $out"
-    dnf -y install "$rpmf" </dev/null >/dev/null || die "dnf could not install $rpmf"
+    dnf -y install "$rpmf" </dev/null >/dev/null || die "dnf could not install $rpmf (its dependencies come from your RHEL repositories)"
+    install -d -m 0700 "$BACKUP_DIR/rpm"; cp -f "$rpmf" "$BACKUP_DIR/rpm/" 2>/dev/null || true   # kept for rollbacks after the bundle directory is gone
   fi
   [ "$(installed_version)" = "$want" ] || die "after installation grafana is $(installed_version), expected $want"
   local sig; sig=$(rpm -q --qf '%{RSAHEADER:pgpsig}' grafana 2>/dev/null || true)
@@ -82,7 +89,7 @@ ensure_secrets() {
   if [ ! -s "$SECRETS_DIR/secret-key" ]; then head -c 48 /dev/urandom | base64 | tr -d '/+=\n' | head -c 40 > "$SECRETS_DIR/secret-key"; info "generated $SECRETS_DIR/secret-key (database secrets are encrypted with it: it is part of every backup/restore decision)"; fi
   if [ ! -s "$SECRETS_DIR/admin-password" ]; then head -c 48 /dev/urandom | base64 | tr -d '/+=\n' | head -c 24 > "$SECRETS_DIR/admin-password"; info "generated $SECRETS_DIR/admin-password (not printed; read it from that file)"; fi
   for f in secret-key admin-password; do chown root:grafana "$SECRETS_DIR/$f"; chmod 0640 "$SECRETS_DIR/$f"; done
-  for f in zabbix-password clickhouse-password; do chown root:root "$SECRETS_DIR/$f"; chmod 0600 "$SECRETS_DIR/$f"; done
+  for f in zabbix-password clickhouse-password; do [ -f "$SECRETS_DIR/$f" ] || continue; chown root:root "$SECRETS_DIR/$f"; chmod 0600 "$SECRETS_DIR/$f"; done
   pass "secret files in place with least-privilege modes"
 }
 
@@ -184,7 +191,7 @@ install_plugins() {
     cur=$(plugin_version "$id")
     if [ "$cur" = "$ver" ]; then pass "plugin $id $ver already installed"; continue; fi
     tmp=$(mktemp -d)
-    if [ "$PACKAGE_SOURCE" = repo ]; then
+    if [ "$PKG_SRC" = repo ]; then
       curl -fsSL -m 300 -o "$tmp/p.zip" "https://grafana.com/api/plugins/$id/versions/$ver/download?os=linux&arch=amd64" || die "download of plugin $id $ver failed"
     else
       cp "$BUNDLE_DIR/plugins/$id-$ver.zip" "$tmp/p.zip" || die "offline bundle has no plugin $id-$ver.zip"
@@ -242,7 +249,7 @@ deploy_release() {
   install -d -m 0755 "$OPT/releases"
   if [ "$RELEASE_DIR" != "$dest" ]; then
     rm -rf "$dest.new"; mkdir -p "$dest.new"
-    (cd "$RELEASE_DIR" && tar --exclude=.git --exclude=dist --exclude=backups --exclude=node_modules --exclude=./bundle --exclude='env/production.env' -cf - .) | tar -xf - -C "$dest.new"
+    (cd "$RELEASE_DIR" && tar --exclude=.git --exclude=./dist --exclude=backups --exclude=node_modules --exclude='env/production.env' --exclude='env/production.env.previous' -cf - .) | tar -xf - -C "$dest.new"
     rm -rf "$dest"; mv "$dest.new" "$dest"
   fi
   ln -sfn "$dest" "$OPT/current"; ln -sfn "$OPT/current/bin/grafana-platform" /usr/local/sbin/grafana-platform
@@ -252,7 +259,7 @@ deploy_release() {
 
 write_release_json() {
   install -d -m 0755 "$ETC"
-  python3 - "$RELEASE_JSON" "$(cat "$RELEASE_DIR/VERSION")" "$(installed_version)" "$PLATFORM_ENV" "$PACKAGE_SOURCE" <<'PY'
+  python3 - "$RELEASE_JSON" "$(cat "$RELEASE_DIR/VERSION")" "$(installed_version)" "$PLATFORM_ENV" "$PKG_SRC" <<'PY'
 import json, sys, time, platform
 path, pv, gv, env, src = sys.argv[1:6]
 try:
@@ -269,7 +276,7 @@ PY
 
 apply_content() {
   info "applying folders, datasources, dashboards and playlist (idempotent)"
-  run_content_tool apply --env-file "$ENV_FILE_USED" --item-map "$ZABBIX_ITEM_MAP_FILE" || die "content deployment failed (see output above)"
+  run_content_tool apply --item-map "$ZABBIX_ITEM_MAP_FILE" || die "content deployment failed (see output above)"
   pass "content deployed"
 }
 

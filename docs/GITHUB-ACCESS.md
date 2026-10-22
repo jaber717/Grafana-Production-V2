@@ -1,5 +1,9 @@
 # Getting the release from the private GitHub repository
 
+> **Release 2.x lives in `jaber717/Grafana-Production-V2`** (private). Substitute that repository and the 2.x tag/file names in the commands below
+> (`grafana-platform-2.0.0-rhel9-offline.tar.gz`). The table and commands that follow are kept from release 1.0.1 of `jaber717/Grafana`.
+> A 2.0 offline archive can also be produced from the published 1.0.1 archive without further downloads: `tools/build-offline-bundle.sh --from-bundle <1.0.1 archive> dist`.
+
 The repository `jaber717/Grafana` is **private**. Production servers should not hold GitHub credentials for long; pick the option that fits your network.
 
 | Option | When | What the server needs |

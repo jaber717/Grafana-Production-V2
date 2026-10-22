@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# SIMULATION: package database = $SIM_STATE/rpmdb (lines "name version-release"); prerequisites listed in SIM_RPMS_PRESENT
+db="$SIM_STATE/rpmdb"; touch "$db"
+case "$1" in
+  --import) exit 0 ;;
+  -K) echo "$2: digests signatures OK"; exit 0 ;;
+  -V) exit 0 ;;
+  -q)
+    shift; fmt=""; [ "${1:-}" = --qf ] && { fmt=$2; shift 2; }
+    name=$1
+    line=$(grep -E "^$name " "$db" | tail -1)
+    if [ -z "$line" ]; then for p in ${SIM_RPMS_PRESENT:-}; do [ "$p" = "$name" ] && { [ -z "$fmt" ] && echo "$p-1.0-1.el9.x86_64"; exit 0; }; done; echo "package $name is not installed"; exit 1; fi
+    vr=${line#* }
+    case "$fmt" in
+      "") echo "$name-$vr.x86_64" ;;
+      *pgpsig*) echo "RSA/SHA512, Thu 01 Oct 2026 00:00:00 UTC, Key ID 963fa27710458545" ;;
+      *VERSION*RELEASE*) printf '%s' "$vr" ;;
+      *VERSION*) printf '%s' "${vr%-*}" ;;
+    esac ;;
+  *) exit 0 ;;
+esac

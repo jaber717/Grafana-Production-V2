@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+echo "<no matches>"; exit 1

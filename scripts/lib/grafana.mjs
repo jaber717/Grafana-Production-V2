@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import tls from 'node:tls';
+import net from 'node:net';
 import { createHash } from 'node:crypto';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,9 +39,19 @@ function request(method, url, headers, body) {
     opts.servername = u.hostname;
     if (process.env.GRAFANA_CA_FILE) opts.ca = [...tls.rootCertificates, readFileSync(process.env.GRAFANA_CA_FILE, 'utf8')];
   }
-  if (process.env.GRAFANA_CONNECT_ADDR) opts.lookup = (_h, _o, cb) => (_o && _o.all ? cb(null, [{ address: process.env.GRAFANA_CONNECT_ADDR, family: process.env.GRAFANA_CONNECT_ADDR.includes(':') ? 6 : 4 }]) : cb(null, process.env.GRAFANA_CONNECT_ADDR, process.env.GRAFANA_CONNECT_ADDR.includes(':') ? 6 : 4));
+  let target = u;
+  if (process.env.GRAFANA_CONNECT_ADDR) {
+    // connect to this address whether GRAFANA_DOMAIN is a name or an IP literal (a lookup override alone is skipped for IP literals);
+    // the Host header, SNI and the certificate check keep using the public name/IP of the URL
+    target = new URL(u); target.hostname = process.env.GRAFANA_CONNECT_ADDR.includes(':') ? `[${process.env.GRAFANA_CONNECT_ADDR}]` : process.env.GRAFANA_CONNECT_ADDR;
+    opts.headers.Host = u.host;
+    if (u.protocol === 'https:') {
+      if (net.isIP(u.hostname)) delete opts.servername;
+      opts.checkServerIdentity = (_h, cert) => tls.checkServerIdentity(u.hostname.replace(/^\[|\]$/g, ''), cert);
+    }
+  }
   return new Promise((resolve, reject) => {
-    const req = lib.request(u, opts, (res) => { const chunks = []; res.on('data', (c) => chunks.push(c)); res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') })); });
+    const req = lib.request(target, opts, (res) => { const chunks = []; res.on('data', (c) => chunks.push(c)); res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString('utf8') })); });
     req.on('timeout', () => req.destroy(new Error('request timed out')));
     req.on('error', reject);
     if (body !== undefined) req.write(body);
