@@ -1,4 +1,4 @@
-# How the installer gets its packages from GitHub (release 2.2.0)
+# How the installer gets its packages from GitHub (release 2.2.x)
 
 ## Install command (production VM)
 
@@ -8,7 +8,31 @@ curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Gra
 
 Existing answers in `/etc/grafana-platform` (platform.env, secrets, item map) are reused: press Enter at "Keep these settings?".
 
-## Root-cause assessment of the 2.1.x failure
+## Latest production failure (2.1.1, after the firewall correction)
+
+`curl: (18) transfer closed with 136420190 bytes remaining to read` for the 335,649,630-byte release asset: the connection closed after
+**exactly 199,229,440 bytes = 190.0 MiB**.
+
+* **Confirmed** (from the code): 2.1.1 ran `rm -f` on the partial file after any curl error — if the installer made that download, the 190 MiB
+  are gone; 2.2.1 never deletes a partial. 2.1.1 had no resume.
+* **Strongly indicated, not confirmed**: a byte-count limit on one HTTP response (proxy/firewall), not a timeout — a time-based cut lands on an
+  exact MiB boundary about once in a million. Which device and which setting is not known from here.
+* **Not the cause**: TLS (data flowed for 190 MiB), the GitHub redirect (it had already been followed), the installer's timeout (`-m 3600`).
+* **Irrelevant for 2.2.x**: the packages come in 1717 responses of < 200 KB; a per-response limit of 190 MiB (or 895 KB) is never reached.
+* `yum update`: nothing in the installer depends on it; its outcome is not known here. If it left the rpm database locked, the install step
+  stops with dnf's own message.
+
+## Recovering an interrupted download (2.2.1)
+
+| Situation | What the installer does |
+|---|---|
+| a cut-off or damaged `grafana-platform-*-offline.tar.gz*` exists (near the release, /root, /tmp, /var/tmp, cache, user home) | reads it (never changes it), keeps every piece whose SHA-256 matches the manifest, fetches only the rest. 190 MiB prefix → 1023 of 1717 pieces reused |
+| the installer itself is interrupted | verified pieces stay in `/var/cache/grafana-platform/parts`; the next run fetches only the missing ones |
+| fallback single download is cut | `.part` kept; continued with `Range: bytes=N-`; appended only from `206` with `Content-Range` starting at N |
+| server/proxy ignores Range (`200`) or answers at another offset | nothing appended, partial kept, message says so |
+| any byte wrong | the piece/archive fails its SHA-256 and is not used; nothing incomplete or unverified is ever installed |
+
+## Root-cause assessment of the earlier 2.1.x failure (~895 KB)
 
 | Observation on the production VM (reported by the operator) | What it shows |
 |---|---|
@@ -68,6 +92,8 @@ main branch (source, ~208 KB tarball)          packages branch (1717 commits, on
 | Same proxy: 1717 pieces from codeload.github.com, interrupted after 40 s, then re-run | 505 pieces kept, rest fetched; 1725 tunnels, 0 cut, largest response 203,333 B; all 4 artifacts equal the pins | — |
 | Clean install on **AlmaLinux 9.8** (RHEL 9.8 rebuild, real systemd, real rpm/dnf, real Grafana 13.2.3, real plugins, bundled Node.js) through the cutting proxy; TLS of the proxy not trusted in the container | `rc=0`, 3 min 11 s; RPM signature OK; `verify` 37 PASS 0 FAIL; real Zabbix-plugin health check OK against the Zabbix 7.0 mock; 47/47 items mapped; 2 NOC dashboards | [evidence/alma98-install-through-cutting-proxy.txt](evidence/alma98-install-through-cutting-proxy.txt) |
 | Re-run `install.sh --yes` | 12 s, nothing downloaded, 0 FAIL | same file |
+| Download recovery: 19 checks, fault-injecting server (cut at 190 MiB, ignored/wrong Range, tampering, damaged partial, retries, re-run) | 19/19 | [evidence/download-recovery-tests.txt](evidence/download-recovery-tests.txt) |
+| AlmaLinux 9.8, 190 MiB partial in /root, real GitHub through the 895 KB-cutting proxy | 1023 pieces reused, 694 fetched, partial unchanged, rc=0, 0 FAIL | [evidence/alma98-reuse-190mib-partial.txt](evidence/alma98-reuse-190mib-partial.txt) |
 | Unit tests / simulated RHEL host | 25/25; simulation see [VALIDATION-V2.md](VALIDATION-V2.md) | evidence/ |
 
 Test-environment substitutions on the AlmaLinux host (the AlmaLinux repositories are unreachable from the build environment, so these

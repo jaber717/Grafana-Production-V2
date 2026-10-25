@@ -6,13 +6,24 @@
 ARCHIVE_GLOB='grafana-platform-*-rhel9-offline.tar.gz'
 CACHE_DIR=${GP_CACHE_DIR:-/var/cache/grafana-platform}
 
-nearby_archives() { # newest first, unique
-  local d f
-  local dirs=("$RELEASE_DIR" "$(dirname "$RELEASE_DIR")" "$PWD" /root /tmp "$CACHE_DIR")
+archive_dirs() {
+  local dirs=("$RELEASE_DIR" "$(dirname "$RELEASE_DIR")" "$PWD" /root /tmp /var/tmp "$CACHE_DIR")
+  [ -n "${SUDO_USER:-}" ] && dirs+=("$(getent passwd "$SUDO_USER" | cut -d: -f6)")
   [ -n "${GP_ARCHIVE_SEARCH:-}" ] && read -r -a dirs <<<"$GP_ARCHIVE_SEARCH"    # tests: restrict the search
-  for d in "${dirs[@]}"; do
-    for f in "$d"/$ARCHIVE_GLOB; do [ -f "$f" ] && readlink -f "$f"; done
-  done 2>/dev/null | awk '!seen[$0]++' | xargs -r ls -1t 2>/dev/null || true   # no match is not an error (pipefail)
+  printf '%s\n' "${dirs[@]}"
+}
+# every file named like an offline archive, complete or not (also *.part / *.tmp of an interrupted download), newest first
+archive_candidates() {
+  local d f
+  while read -r d; do
+    for f in "$d"/$ARCHIVE_GLOB "$d"/$ARCHIVE_GLOB.*; do [ -f "$f" ] && [ -s "$f" ] && readlink -f "$f"; done
+  done < <(archive_dirs) 2>/dev/null | awk '!seen[$0]++' | xargs -r ls -1t 2>/dev/null || true
+}
+# complete archives only (whole gzip stream intact); a cut-off download is not offered as an archive, its content is reused piece by piece
+nearby_archives() {
+  local f
+  [ "${GP_SKIP_ARCHIVES:-0}" = 1 ] && return 0
+  archive_candidates | while read -r f; do case "$f" in *.tar.gz) gzip -t "$f" 2>/dev/null && echo "$f" ;; esac; done || true
 }
 
 # $1 = directory with rpm/ plugins/ node/; prints what is wrong, returns 0 when every pinned artifact is present and matches
@@ -72,12 +83,41 @@ dl_hint() { # $1 = curl exit code
 # Ranged GET (1 byte) through the same path as the real download; sets DL_ERR / DL_RC on failure, DL_INSECURE=1 if only the certificate failed.
 download_reachable() {
   local out rc; DL_ERR=""; DL_RC=0
-  out=$(dl_curl "$(bundle_url)" -sS -r 0-0 -m 60 -o /dev/null 2>&1) && return 0 || rc=$?
+  # 1-byte range; --max-filesize stops at once if the range is ignored (exit 63 = the server answered with the whole file: reachable)
+  out=$(dl_curl "$(bundle_url)" -sS -r 0-0 --max-filesize 1048576 -m 60 -o /dev/null 2>&1) && return 0 || rc=$?
+  [ "$rc" = 63 ] && return 0
   if [ "$rc" = 60 ] || [ "$rc" = 35 ]; then
-    rc=0; out=$(DL_INSECURE=1 dl_curl "$(bundle_url)" -sS -r 0-0 -m 60 -o /dev/null 2>&1) || rc=$?
-    if [ "$rc" = 0 ]; then DL_INSECURE=1; export DL_INSECURE; return 0; fi
+    rc=0; out=$(DL_INSECURE=1 dl_curl "$(bundle_url)" -sS -r 0-0 --max-filesize 1048576 -m 60 -o /dev/null 2>&1) || rc=$?
+    if [ "$rc" = 0 ] || [ "$rc" = 63 ]; then DL_INSECURE=1; export DL_INSECURE; return 0; fi
   fi
   DL_RC=$rc; DL_ERR=$(echo "$out" | tail -1); return 1
+}
+
+# Download URL to OUT, continuing an existing OUT with a Range request. Appends only data that arrives in a 206 answer whose
+# Content-Range starts exactly at the current size; an answer that ignores the range (200) or starts elsewhere is discarded and
+# the partial file is kept. Up to 6 attempts, each continuing where the last stopped. Sets DL_RC / DL_ERR on failure.
+dl_resumable() {
+  local url=$1 out=$2 try off rc err code cr
+  for try in 1 2 3 4 5 6; do
+    off=$(stat -c %s "$out" 2>/dev/null || echo 0)
+    if [ "$off" -eq 0 ]; then
+      rc=0; err=$(dl_curl "$url" -sS -m 3600 -o "$out" 2>&1) || rc=$?
+    else
+      [ "$try" = 1 ] && info "continuing the download at $((off / 1048576)) MiB (byte range request)"
+      rc=0; err=$(dl_curl "$url" -sS -m 3600 -r "$off-" -D "$out.hdr" -o "$out.range" 2>&1) || rc=$?
+      code=$(awk '/^HTTP\//{c=$2} END{print c}' "$out.hdr" 2>/dev/null | tr -d '\r')
+      cr=$(tr -d '\r' < "$out.hdr" 2>/dev/null | sed -n 's/^[Cc]ontent-[Rr]ange: bytes \([0-9]*\)-.*/\1/p' | tail -1)
+      if [ "$code" = 206 ] && [ "$cr" = "$off" ]; then cat "$out.range" >> "$out"
+      elif [ "$code" = 200 ]; then rm -f "$out.range" "$out.hdr"; DL_RC=33; DL_ERR="the server or proxy ignored the byte range (HTTP 200 instead of 206); the $((off / 1048576)) MiB already downloaded are kept, nothing was appended"; return 1
+      elif [ -n "$code" ] && [ "$code" != 206 ]; then rc=22; err="HTTP $code to the byte range request"
+      elif [ "$code" = 206 ]; then rm -f "$out.range" "$out.hdr"; DL_RC=33; DL_ERR="the answer starts at byte ${cr:-?} instead of $off; nothing was appended"; return 1
+      fi
+      rm -f "$out.range" "$out.hdr"
+    fi
+    [ "$rc" = 0 ] && return 0
+    DL_RC=$rc; DL_ERR=$(echo "$err" | tail -1); sleep $((try * 5))
+  done
+  return 1
 }
 
 # ---- package pieces from codeload.github.com (packages/MANIFEST.txt: "<commit> <piece-sha256> <artifact> <index>") ----
@@ -116,7 +156,14 @@ fetch_parts_bundle() {
   local dir="$CACHE_DIR/parts" total done=0 running=0 failed=0 c s a i f
   install -d -m 0755 "$dir"; rm -f "$dir"/*.err
   total=$(parts_list | wc -l)
-  info "fetching $total package pieces from ${PACKAGES_URL_BASE%%/tar.gz}${PKG_PROXY:+ via proxy $PKG_PROXY} (each < 200 KB, SHA-256 checked)"
+  local arcs=() n src; mapfile -t arcs < <(archive_candidates)
+  if [ "${#arcs[@]}" -gt 0 ]; then
+    while read -r n src; do
+      [ "$n" -gt 0 ] && pass "reused $n verified piece(s) from $src (each SHA-256 checked; the file itself is not changed)"
+    done < <(python3 "$LIBDIR/seedparts.py" "$PARTS_MANIFEST" "$PACKAGES_PIECE_BYTES" "$dir" "${arcs[@]}")
+  fi
+  n=$(parts_list | while read -r c s _; do [ -f "$dir/$c" ] || echo x; done | wc -l); local fetched=$n
+  info "fetching $n of $total package pieces from ${PACKAGES_URL_BASE%%/tar.gz}${PKG_PROXY:+ via proxy $PKG_PROXY} (each < 200 KB, SHA-256 checked)"
   while read -r c s a i; do
     done=$((done + 1)); if [ $((done % 172)) = 0 ]; then info "  $((done * 100 / total))% of the pieces"; fi
     if [ -f "$dir/$c" ] && [ "$(sha256sum < "$dir/$c" | cut -c1-64)" = "$s" ]; then continue; fi
@@ -139,7 +186,7 @@ fetch_parts_bundle() {
   local bad; if ! bad=$(verify_pinned_bundle "$BUNDLE_DIR"); then die "the joined packages do not match the pins of this release:$bad (refusing them)"; fi
   (cd "$BUNDLE_DIR" && find rpm plugins node -type f -print0 | sort -z | xargs -0 sha256sum) > "$BUNDLE_DIR/SHA256SUMS"
   rm -rf "$dir"
-  pass "packages fetched from GitHub in $total pieces; Grafana RPM, plugins and Node.js match the pins"
+  pass "packages assembled from $total pieces ($fetched fetched from GitHub, $((total - fetched)) reused); Grafana RPM, plugins and Node.js match the pins"
 }
 
 # Read-only: decide where the packages will come from. Sets PKG_PLAN (none|bundle|archive|repo|download|missing) and PKG_PLAN_DETAIL.
@@ -168,16 +215,20 @@ prepare_packages() {
     parts)
       [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy (certificate not trusted here); continuing because every piece and every package is accepted only if its SHA-256 matches"
       fetch_parts_bundle; PKG_SRC=bundle ;;
-    archive) extract_bundle_from "$PKG_PLAN_DETAIL" || die "the offline archive $PKG_PLAN_DETAIL cannot be used (see above); remove it or replace it with a good copy"; PKG_SRC=bundle ;;
+    archive)
+      if extract_bundle_from "$PKG_PLAN_DETAIL"; then PKG_SRC=bundle
+      else warn "the offline archive $PKG_PLAN_DETAIL cannot be used (see above); it is left untouched and the packages are taken from the next source"
+           GP_SKIP_ARCHIVES=1 prepare_packages; return; fi ;;
     download)
       local url sha f; url=$(bundle_url); sha=$(bundle_url_sha); f="$CACHE_DIR/$(basename "$url")"
       [ -n "$sha" ] || die "BUNDLE_URL is set without BUNDLE_URL_SHA256: refusing an unverified download"
       install -d -m 0755 "$CACHE_DIR"
       info "downloading the pinned offline bundle ($(basename "$url"), ~330 MB) — this is the only download"
       [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy (certificate not trusted here); downloading anyway because the file is accepted only if its SHA-256 equals the pin in this release"
-      local rc=0; dl_curl "$url" -m 3600 -o "$f.part" || rc=$?
-      [ "$rc" = 0 ] || { rm -f "$f.part"; die "download failed (curl exit $rc): $url — $(dl_hint "$rc")"; }
-      [ "$(sha256sum "$f.part" | cut -d' ' -f1)" = "$sha" ] || { rm -f "$f.part"; die "the downloaded archive does not match its pinned SHA-256: refusing it"; }
+      dl_resumable "$url" "$f.part" || die "download of $(basename "$url") stopped at $(( $(stat -c %s "$f.part" 2>/dev/null || echo 0) / 1048576 )) MiB: $DL_ERR. The partial file is kept ($f.part); run the installer again to continue — $(dl_hint "${DL_RC:-18}")"
+      if [ "$(sha256sum "$f.part" | cut -d' ' -f1)" != "$sha" ]; then
+        mv -f "$f.part" "$f.rejected"; die "the downloaded archive does not match its pinned SHA-256: refused and kept as $f.rejected (nothing was installed from it)"
+      fi
       mv -f "$f.part" "$f"; extract_bundle_from "$f" || die "the downloaded archive does not carry the pinned artifacts"; PKG_SRC=bundle ;;
     missing) die "$(missing_packages_message)" ;;
   esac

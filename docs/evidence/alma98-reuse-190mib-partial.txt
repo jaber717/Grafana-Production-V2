@@ -1,0 +1,76 @@
+# AlmaLinux 9.8 container (systemd PID 1): a 190 MiB cut-off download of the 1.0.1 archive left in /root; installer of 2.2.1 (working tree)
+# packages from real GitHub (codeload.github.com) through a test proxy that resets every tunnel after 895 KB; test-only overrides as in alma98-install-through-cutting-proxy.txt
+# result: 1023 pieces reused from the partial (SHA-256 checked), 694 fetched; partial file unchanged (sha256sum -c OK); Grafana 13.2.3 installed, 0 FAIL
+
+
+Grafana platform 2.2.0 — setup
+
+== Grafana
+  Address users will open (IP or DNS name of this server) [192.0.2.2]: (answered)
+    Only these source networks may reach Grafana (firewalld). Space-separated, e.g. 10.20.8.0/24 10.50.0.0/16
+  Allowed networks: (answered)
+    Web protocol: https needs a certificate + key file; http is unencrypted (choose it only on an isolated network).
+  Protocol, type http or https: (answered)
+
+== Zabbix (optional: the NOC dashboards and the Zabbix data source)
+  Connect Zabbix now? [Y/n]: 
+  Zabbix URL (e.g. http://10.20.8.24:8080): (answered)
+    Zabbix uses plain HTTP: its password crosses the network unencrypted.
+  Allow unencrypted data-source connections on this isolated network? [y/N]: (answered)
+  Zabbix API user (read-only): (answered)
+  Zabbix password for grafana-ro: (hidden)
+    testing login ... OK (Zabbix 7.0.30, 7 host(s) visible)
+
+== ClickHouse / Akvorado (optional: the 5 NetFlow dashboards)
+  Connect ClickHouse now? [y/N]: 
+
+== Grafana administrator
+  Password for the Grafana user 'admin' (Enter = generate one): (hidden)
+
+== Installing (this takes a few minutes; log in /var/log/grafana-platform)
+  INSTALL: 35 PASS, 13 WARN, 0 FAIL
+  [WARN] SELinux is not (persistently) Enforcing: Disabled. Recommended: setenforce 1 and SELINUX=enforcing in /etc/selinux/config
+  [WARN] clock is not NTP-synchronized (certificate validation and Zabbix timestamps depend on it)
+  [WARN] Grafana listens with plain HTTP (GRAFANA_ALLOW_INSECURE_HTTP=yes): logins and cookies are unencrypted on the network
+  [WARN] Zabbix API over plain HTTP (allowed by ALLOW_INSECURE_DATASOURCES=yes): the Zabbix password crosses the network unencrypted
+  [WARN] TLS to GitHub is re-signed by an inspecting proxy; every piece and package is accepted only if its SHA-256 matches
+  [WARN] optional sqlite unavailable: backups (sqlite3) will not work until it is installed
+  [WARN] optional python3-dnf-plugin-versionlock unavailable: the dnf version lock will not work until it is installed
+  [WARN] optional policycoreutils-python-utils unavailable: SELinux relabel helpers will not work until it is installed
+  [WARN] /var/lib/grafana shares the root filesystem (a separate LV is recommended for the database)
+  [WARN] TLS to GitHub is re-signed by an inspecting proxy (certificate not trusted here); continuing because every piece and every package is accepted only if its SHA-256 matches
+  [WARN] optional sqlite not installed: backups (sqlite3) unavailable
+  [WARN] optional python3-dnf-plugin-versionlock not installed: the dnf version lock unavailable
+  [WARN] optional policycoreutils-python-utils not installed: SELinux relabel helpers unavailable
+  [WARN] could not set a dnf versionlock
+  [WARN] SELinux is Disabled (Grafana runs unconfined on RHEL either way; Enforcing is still recommended)
+  [WARN] no dnf versionlock on grafana
+
+== Zabbix item map for the 2 NOC dashboards
+    These LAB router names are not in your Zabbix: SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B
+  Type their Zabbix host names now? (n = keep the NOC dashboards for later) [Y/n]: 
+  Zabbix host name for SITE-A (Enter = skip): (answered)
+  Zabbix host name for SITE-B (Enter = skip): (answered)
+  Zabbix host name for STC (Enter = skip): (answered)
+  Zabbix host name for MOBILY (Enter = skip): (answered)
+  Zabbix host name for INT-CORE (Enter = skip): (answered)
+  Zabbix host name for SAIX-A (Enter = skip): (answered)
+  Zabbix host name for SAIX-B (Enter = skip): (answered)
+    wrote /etc/grafana-platform/zabbix-item-map.json: 47 of 47 item(s) mapped (47 resolved now)
+    all items mapped
+    7 router uptime item(s) were matched by standard SNMP keys: confirm them in Zabbix (list: /etc/grafana-platform/zabbix-item-map.report.txt)
+
+== Deploying the dashboards the item map enables
+              health: OK Zabbix API version 7.0.30
+    created   dashboard noc-device-health -> noc
+    created   dashboard noc-wan-overview -> noc
+    applied: 2 created, 0 updated, 3 unchanged, 0 refused, 7 skipped
+
+==================================================================
+ Grafana is installed:  http://10.20.8.27:3000/
+ Login: admin / the password you entered
+ Zabbix: connected; NOC dashboards deployed
+ ClickHouse: not connected -> add it with: sudo grafana-platform setup --clickhouse
+ Note: plain HTTP (your explicit choice). Switch to https later: sudo grafana-platform setup --reconfigure
+ Health check any time: sudo grafana-platform verify
+==================================================================

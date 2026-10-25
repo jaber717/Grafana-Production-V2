@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.1] - 2026-10-25
+
+**Interrupted downloads are recovered, never repeated, never trusted unchecked.** Production: the single 336 MB release-asset download
+(2.1.1) closed after exactly 199,229,440 bytes (190.0 MiB, `curl: (18)`). No change to dashboards, UIDs, pins or configuration.
+
+### Fixed
+* An interrupted download is reused: any file named like an offline archive near the release, in /root, /tmp, /var/tmp, the cache or the
+  invoking user's home — complete, cut off, `*.part`, damaged — is read (never changed) and every 192 KiB piece in it whose SHA-256 matches
+  the pinned manifest is kept; only the rest is fetched (`lib/seedparts.py`). A 190 MiB prefix supplies 1023 of 1717 pieces.
+* A cut-off archive named `*.tar.gz` no longer stops the installer ("cannot be used"): incomplete gzip streams are not offered as archives,
+  and an archive that fails its pins falls through to the next source.
+* Single-archive download (fallback): the partial file is kept on any network error (2.1.1 deleted it) and continued with a Range request;
+  data is appended only from a `206` whose `Content-Range` starts exactly at the current size. `200` (range ignored) or a wrong start:
+  nothing appended, partial kept, clear message. Up to 6 continuing attempts; final SHA-256 against the pin, a mismatch is kept as `*.rejected`.
+* The 1-byte reachability probe stops after 1 MB (`--max-filesize`) when a server ignores Range, instead of streaming the whole file.
+* `tests/download/run-download-tests.sh`: 19 checks against a fault-injecting server (cuts, ignored/wrong ranges, tampering, damaged partials).
+
 ## [2.2.0] - 2026-10-25
 
 **Packages from GitHub in small pieces.** The production proxy cuts the single 336 MB release-asset download after ~895 KB; the packages now
