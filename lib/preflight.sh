@@ -35,7 +35,7 @@ ca_bundle_with() { # $@ extra CA files -> path of a temporary bundle (system sto
 }
 
 probe_zabbix() { # read-only: apiinfo.version needs no credentials. Prints the version or nothing.
-  local args=(-sS -m 8 -H 'Content-Type: application/json-rpc' -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}') cab=""
+  local args=(-sS -m 8 --noproxy '*' -H 'Content-Type: application/json-rpc' -d '{"jsonrpc":"2.0","method":"apiinfo.version","params":{},"id":1}') cab=""
   case "$ZABBIX_URL" in https://*)
     if [ "$ZABBIX_TLS_SKIP_VERIFY" = true ]; then args+=(-k); elif [ -n "${ZABBIX_CA_FILE:-}" ]; then cab=$(ca_bundle_with "$ZABBIX_CA_FILE"); args+=(--cacert "$cab"); fi ;;
   esac
@@ -44,7 +44,7 @@ probe_zabbix() { # read-only: apiinfo.version needs no credentials. Prints the v
 }
 
 probe_clickhouse() { # read-only: GET /ping answers "Ok." without credentials
-  local scheme=http args=(-sS -m 8) cab=""
+  local scheme=http args=(-sS -m 8 --noproxy '*') cab=""
   if [ "$CLICKHOUSE_SECURE" = true ]; then scheme=https; [ -n "${CLICKHOUSE_CA_FILE:-}" ] && { cab=$(ca_bundle_with "$CLICKHOUSE_CA_FILE"); args+=(--cacert "$cab"); }; fi
   curl "${args[@]}" "$scheme://$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/ping" 2>/dev/null | tr -d '\r\n' || true
   [ -n "$cab" ] && rm -f "$cab"; return 0
@@ -166,9 +166,10 @@ run_preflight() {
       else fail "offline bundle at $BUNDLE_DIR is damaged or for other pins:$bad"; fix "remove $BUNDLE_DIR and run the installer again (it re-takes the bundle from an archive or downloads it)"; fi ;;
     archive) pass "offline archive found: $PKG_PLAN_DETAIL (install unpacks and verifies its bundle)" ;;
     repo) pass "online package sources reachable ($PKG_PLAN_DETAIL)" ;;
-    download) pass "no local bundle; the pinned offline archive is reachable and will be downloaded once: $PKG_PLAN_DETAIL" ;;
-    missing) fail "the Grafana package cannot be obtained: no offline bundle here, no Internet access, and $(bundle_url) is not reachable"
-             fix "download $(basename "$(bundle_url)") on any PC from $(bundle_url), copy it next to install.sh (or to /root), and run the installer again — it is found and verified automatically" ;;
+    download) pass "no local bundle; the pinned offline archive is reachable${PKG_PROXY:+ via proxy $PKG_PROXY} and will be downloaded once: $PKG_PLAN_DETAIL"
+              [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy; the download is accepted only if its SHA-256 equals the pin" ;;
+    missing) fail "the Grafana package cannot be obtained: no offline bundle here and $(bundle_url) is not reachable${PKG_PROXY:+ via proxy $PKG_PROXY}: ${DL_ERR:-no answer}"
+             fix "$(dl_hint "${DL_RC:-7}")" ;;
   esac
   # required tools block; optional ones (backups, version lock, SELinux tooling) only warn
   local p; for p in $PREREQS_REQUIRED; do

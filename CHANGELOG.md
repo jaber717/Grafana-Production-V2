@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.1] - 2026-10-25
+
+**Fix: the pinned-archive download did not work behind an explicit HTTP proxy** (found on the production VM: "the Grafana package cannot be obtained"). No change to dashboards, UIDs, pins or the install flow.
+
+### Fixed
+* The download of the pinned offline archive from GitHub now uses an explicit proxy: `GP_PROXY`, else `https_proxy`/`HTTPS_PROXY`, else `proxy=` in `/etc/dnf/dnf.conf`. Before, the installer had no proxy support and `sudo` removed the operator's proxy variables. `install.sh` now hands the proxy through `sudo`.
+* Reachability is checked with a 1-byte GET over the same path as the download (GitHub redirect followed, HTTP errors count as failures) instead of a HEAD request that also counted a proxy's error page as success.
+* Transient errors (incl. 502/503/504) are retried 3 times; connect timeout 20 s.
+* A proxy that re-signs TLS (certificate not trusted on the host) no longer blocks: the download continues with a WARN, because the file is accepted only if its SHA-256 equals the pin in this release, and every RPM/plugin/Node artifact inside is checked against its own pin.
+* The failure message now shows curl's actual error, the proxy used, and a fix for that error (proxy refused / timeout / DNS / not allowed).
+* Internal connections (local Grafana, Zabbix and ClickHouse probes) never use a proxy, even when proxy variables are exported.
+
 ## [2.1.0] - 2026-10-22
 
 **One-command installation.** No change to dashboards, UIDs, datasource templates or any pin.

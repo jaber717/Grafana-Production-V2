@@ -21,6 +21,9 @@ The Grafana RPM, plugins and Node.js are found **automatically**, in this order:
 `grafana-platform-*-rhel9-offline.tar.gz` next to the release directory, in it, or in `/root` → rpm.grafana.com → a one-time download of the
 pinned offline archive (the published `jaber717/Grafana` 1.0.1 asset, identical pins). Every file is checked against the SHA-256 values pinned in this
 release before anything is installed. You do **not** build a bundle.
+**Behind an HTTP proxy** (e.g. a Fortinet explicit proxy): pass it once, e.g. `sudo GP_PROXY=http://172.20.129.10:8080 ./install.sh`.
+It is used only for that one GitHub download (also taken from `https_proxy` or `proxy=` in `/etc/dnf/dnf.conf`); Grafana, Zabbix and ClickHouse
+connections never go through it. If the proxy re-signs TLS, the download continues with a WARN — the file is still accepted only if its SHA-256 equals the pin.
 Already have `grafana-platform-1.0.1-rhel9-offline.tar.gz`? Put it next to the cloned directory (or in `/root`): it is accepted as is.
 
 ## The questions (Enter = the value in brackets)

@@ -295,7 +295,7 @@ section "2.0 repo mode on an isolated host: one FAIL, with the way out"
 reset_host
 mv "$REL/bundle" "$REL/bundle.off"
 gp preflight --env-file "$ENVF"; rc=$?
-check "no bundle + no Internet -> ONE package FAIL that says which single file to copy" '[ "$(grep -c "^\[FAIL\].*cannot be obtained" "$W/out")" = 1 ] && out_has "copy it next to install.sh"'
+check "no bundle + no Internet -> ONE package FAIL that names the fix (proxy)" '[ "$(grep -c "^\[FAIL\].*cannot be obtained" "$W/out")" = 1 ] && out_has "proxy http://127.0.0.1:9 does not accept connections"'
 mv "$REL/bundle.off" "$REL/bundle"
 
 section "ONE command: sudo ./install.sh from a git clone WITHOUT bundle; the offline archive lies next to it (auto-found, verified, unpacked)"
@@ -362,7 +362,7 @@ section "Safety: no package anywhere -> stops before changing anything; tampered
 reset_host; rm -rf /etc/grafana-platform "$CLONE/bundle" "$W/clone"/grafana-platform-*-offline.tar.gz
 { echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo n; echo n; echo; } > "$W/answers"
 setup; rc=$?
-check "no bundle, no archive, no Internet: one clear message, nothing installed (rc=$rc)" '[ $rc != 0 ] && out_has "copy it next to install.sh" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
+check "no bundle, no archive, no Internet: one clear message, nothing installed (rc=$rc)" '[ $rc != 0 ] && out_has "is not reachable" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
 head -c 1000 /dev/urandom | gzip > "$W/clone/grafana-platform-9.9.9-rhel9-offline.tar.gz"
 : > "$W/answers"; setup --yes; rc=$?
 check "an unusable archive is refused, never installed from (rc=$rc)" '[ $rc != 0 ] && out_has "not a readable offline archive|cannot be used" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'

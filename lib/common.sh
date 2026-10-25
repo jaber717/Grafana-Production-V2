@@ -112,7 +112,7 @@ want_version() { echo "${GRAFANA_VERSION_OVERRIDE:-$GRAFANA_VERSION}-$GRAFANA_RP
 
 base_url() { printf '%s://%s:%s' "$GRAFANA_PROTOCOL" "${GRAFANA_DOMAIN:-localhost}" "$GRAFANA_HTTP_PORT"; }
 curl_local() { # curl against the local instance by its public name (or IP), always connected via loopback; TLS verified for that name
-  local args=(-sS -m 15 --connect-to "::127.0.0.1:")
+  local args=(-sS -m 15 --noproxy '*' --connect-to "::127.0.0.1:")
   curl "${args[@]}" "$@"
 }
 

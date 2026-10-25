@@ -5,8 +5,8 @@
 #   sudo ./install.sh --clickhouse    add / change the ClickHouse (Akvorado) connection later
 #   sudo ./install.sh --reconfigure   answer all questions again;   --yes  re-run without questions
 # The Grafana package comes from (automatically): ./bundle, an offline archive next to this directory or in /root, the Internet,
-# or a download of the pinned offline archive — always verified against the SHA-256 values pinned in this release.
+# or a download of the pinned offline archive (through GP_PROXY / https_proxy / dnf.conf proxy=) — always verified against the SHA-256 values pinned in this release.
 set -euo pipefail
 HERE=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
-if [ "$(id -u)" -ne 0 ]; then command -v sudo >/dev/null && exec sudo "$HERE/install.sh" "$@"; echo "run as root" >&2; exit 1; fi
+if [ "$(id -u)" -ne 0 ]; then px=${GP_PROXY:-${https_proxy:-${HTTPS_PROXY:-}}}; command -v sudo >/dev/null && exec sudo ${px:+GP_PROXY="$px"} "$HERE/install.sh" "$@"; echo "run as root" >&2; exit 1; fi
 exec "$HERE/bin/grafana-platform" setup "$@"
