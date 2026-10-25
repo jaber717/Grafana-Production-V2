@@ -362,7 +362,7 @@ section "Safety: no package anywhere -> stops before changing anything; tampered
 reset_host; rm -rf /etc/grafana-platform "$CLONE/bundle" "$W/clone"/grafana-platform-*-offline.tar.gz
 { echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo n; echo n; echo; } > "$W/answers"
 setup; rc=$?
-check "no bundle, no archive, no Internet: one clear message, nothing installed (rc=$rc)" '[ $rc != 0 ] && out_has "is not reachable" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
+check "no bundle, no archive, no Internet: one clear message, nothing installed (rc=$rc)" '[ $rc != 0 ] && out_has "neither the package pieces on .* nor .* are reachable" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'
 head -c 1000 /dev/urandom | gzip > "$W/clone/grafana-platform-9.9.9-rhel9-offline.tar.gz"
 : > "$W/answers"; setup --yes; rc=$?
 check "an unusable archive is refused, never installed from (rc=$rc)" '[ $rc != 0 ] && out_has "not a readable offline archive|cannot be used" && ! grep -q "^grafana " "$W/sys/state/rpmdb" 2>/dev/null'

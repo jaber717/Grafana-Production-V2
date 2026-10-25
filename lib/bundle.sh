@@ -64,8 +64,8 @@ dl_hint() { # $1 = curl exit code
   case "$1" in
     5|7) [ -n "$p" ] && echo "proxy $p does not accept connections (check address/port)" || echo "no proxy configured and no direct route; rerun with: sudo GP_PROXY=http://<proxy>:<port> $(CLI 2>/dev/null || echo ./install.sh)" ;;
     6) echo "DNS cannot resolve github.com; use the proxy: GP_PROXY=http://<proxy>:<port>" ;;
-    28) echo "timed out; the proxy must allow github.com and release-assets.githubusercontent.com (port 443)" ;;
-    22|56) echo "the proxy refused or the server answered an error; allow github.com and release-assets.githubusercontent.com on ${p:-the proxy}" ;;
+    28) echo "timed out; the proxy must allow codeload.github.com (port 443)" ;;
+    22|56) echo "the proxy refused or the server answered an error; allow codeload.github.com on ${p:-the proxy}" ;;
     *) echo "see the curl message above" ;;
   esac
 }
@@ -80,6 +80,68 @@ download_reachable() {
   DL_RC=$rc; DL_ERR=$(echo "$out" | tail -1); return 1
 }
 
+# ---- package pieces from codeload.github.com (packages/MANIFEST.txt: "<commit> <piece-sha256> <artifact> <index>") ----
+PARTS_MANIFEST="$RELEASE_DIR/packages/MANIFEST.txt"
+PARTS_JOBS=${GP_PARTS_JOBS:-4}
+parts_list() { grep -v '^#' "$PARTS_MANIFEST" | awk 'NF == 4'; }
+# One piece: download the small tar.gz of that commit, take its single file, check the piece's SHA-256. Up to 5 attempts.
+fetch_part() {
+  local c=$1 s=$2 out=$3 try rc err
+  for try in 1 2 3 4 5; do
+    rc=0; err=$(dl_curl "$PACKAGES_URL_BASE/$c" -sS -m 120 -o "$out.tgz" 2>&1) || rc=$?
+    if [ "$rc" = 0 ]; then
+      if tar -xzOf "$out.tgz" --wildcards '*/part' > "$out.tmp" 2>/dev/null && [ "$(sha256sum < "$out.tmp" | cut -c1-64)" = "$s" ]; then
+        mv -f "$out.tmp" "$out"; rm -f "$out.tgz"; return 0
+      fi
+      rc=22; err="piece $c: content does not match its SHA-256"
+    fi
+    rm -f "$out.tgz" "$out.tmp"; sleep $((try * 2))
+  done
+  echo "$rc $(echo "$err" | tail -1)" > "$out.err"; return 1
+}
+# Read-only check: the first piece can be fetched (sets DL_ERR / DL_RC; DL_INSECURE=1 if only certificate verification failed).
+parts_reachable() {
+  [ -s "$PARTS_MANIFEST" ] && [ -n "${PACKAGES_URL_BASE:-}" ] || return 1
+  local c out rc; DL_ERR=""; DL_RC=0; c=$(parts_list | awk 'NR==1{print $1}')
+  out=$(dl_curl "$PACKAGES_URL_BASE/$c" -sS -m 60 -o /dev/null 2>&1) && return 0 || rc=$?
+  if [ "$rc" = 60 ] || [ "$rc" = 35 ]; then
+    rc=0; out=$(DL_INSECURE=1 dl_curl "$PACKAGES_URL_BASE/$c" -sS -m 60 -o /dev/null 2>&1) || rc=$?
+    if [ "$rc" = 0 ]; then DL_INSECURE=1; export DL_INSECURE; return 0; fi
+  fi
+  DL_RC=$rc; DL_ERR=$(echo "$out" | tail -1); return 1
+}
+# Fetch every missing piece (pieces already in the cache and matching their SHA-256 are kept: a re-run continues),
+# join them per artifact into $BUNDLE_DIR and verify every artifact against this release's pins.
+fetch_parts_bundle() {
+  local dir="$CACHE_DIR/parts" total done=0 running=0 failed=0 c s a i f
+  install -d -m 0755 "$dir"; rm -f "$dir"/*.err
+  total=$(parts_list | wc -l)
+  info "fetching $total package pieces from ${PACKAGES_URL_BASE%%/tar.gz}${PKG_PROXY:+ via proxy $PKG_PROXY} (each < 200 KB, SHA-256 checked)"
+  while read -r c s a i; do
+    done=$((done + 1)); if [ $((done % 172)) = 0 ]; then info "  $((done * 100 / total))% of the pieces"; fi
+    if [ -f "$dir/$c" ] && [ "$(sha256sum < "$dir/$c" | cut -c1-64)" = "$s" ]; then continue; fi
+    fetch_part "$c" "$s" "$dir/$c" &
+    running=$((running + 1))
+    if [ "$running" -ge "$PARTS_JOBS" ]; then wait -n || failed=1; running=$((running - 1)); fi
+    if [ "$failed" = 1 ]; then break; fi
+  done < <(parts_list)
+  while [ "$running" -gt 0 ]; do wait -n || failed=1; running=$((running - 1)); done
+  if [ "$failed" = 1 ]; then
+    f=$(cat "$dir"/*.err 2>/dev/null | head -1); DL_RC=${f%% *}; DL_ERR=${f#* }
+    die "a package piece could not be fetched after 5 attempts: $DL_ERR. Pieces already fetched are kept in $dir; run the installer again to continue — $(dl_hint "$DL_RC")"
+  fi
+  install -d -m 0755 "$BUNDLE_DIR"
+  for a in $(parts_list | awk '!seen[$3]++ {print $3}'); do
+    install -d -m 0755 "$BUNDLE_DIR/$(dirname "$a")"
+    parts_list | awk -v a="$a" '$3 == a {print $4, $1}' | sort -n | while read -r _ c; do cat "$dir/$c"; done > "$BUNDLE_DIR/$a.tmp"
+    mv -f "$BUNDLE_DIR/$a.tmp" "$BUNDLE_DIR/$a"
+  done
+  local bad; if ! bad=$(verify_pinned_bundle "$BUNDLE_DIR"); then die "the joined packages do not match the pins of this release:$bad (refusing them)"; fi
+  (cd "$BUNDLE_DIR" && find rpm plugins node -type f -print0 | sort -z | xargs -0 sha256sum) > "$BUNDLE_DIR/SHA256SUMS"
+  rm -rf "$dir"
+  pass "packages fetched from GitHub in $total pieces; Grafana RPM, plugins and Node.js match the pins"
+}
+
 # Read-only: decide where the packages will come from. Sets PKG_PLAN (none|bundle|archive|repo|download|missing) and PKG_PLAN_DETAIL.
 package_plan() {
   PKG_PLAN_DETAIL=""
@@ -89,9 +151,10 @@ package_plan() {
     local a; a=$(nearby_archives | head -1)
     if [ -n "$a" ]; then PKG_PLAN=archive; PKG_PLAN_DETAIL=$a; return; fi
   fi
-  if [ "$PACKAGE_SOURCE" != bundle ] && online_reachable; then PKG_PLAN=repo; PKG_PLAN_DETAIL="rpm.grafana.com + grafana.com"; return; fi
   PKG_PROXY=$(dl_proxy "$(bundle_url)")
+  if [ "$PACKAGE_SOURCE" != repo ] && parts_reachable; then PKG_PLAN=parts; PKG_PLAN_DETAIL="$(parts_list | wc -l) pieces from ${PACKAGES_URL_BASE%%/tar.gz}"; return; fi
   if [ "$PACKAGE_SOURCE" != repo ] && download_reachable; then PKG_PLAN=download; PKG_PLAN_DETAIL=$(bundle_url); return; fi
+  if [ "$PACKAGE_SOURCE" != bundle ] && online_reachable; then PKG_PLAN=repo; PKG_PLAN_DETAIL="rpm.grafana.com + grafana.com"; return; fi
   PKG_PLAN=missing
 }
 
@@ -102,6 +165,9 @@ prepare_packages() {
     none) PKG_SRC=${PKG_SRC:-bundle} ;;
     bundle) PKG_SRC=bundle ;;
     repo) PKG_SRC=repo ;;
+    parts)
+      [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy (certificate not trusted here); continuing because every piece and every package is accepted only if its SHA-256 matches"
+      fetch_parts_bundle; PKG_SRC=bundle ;;
     archive) extract_bundle_from "$PKG_PLAN_DETAIL" || die "the offline archive $PKG_PLAN_DETAIL cannot be used (see above); remove it or replace it with a good copy"; PKG_SRC=bundle ;;
     download)
       local url sha f; url=$(bundle_url); sha=$(bundle_url_sha); f="$CACHE_DIR/$(basename "$url")"
@@ -120,5 +186,5 @@ prepare_packages() {
 
 missing_packages_message() {
   local p; p=$(dl_proxy "$(bundle_url)")
-  printf 'the Grafana package is not available: no offline bundle here and %s is not reachable%s (%s). Fix: %s' "$(bundle_url)" "${p:+ via proxy $p}" "${DL_ERR:-no answer}" "$(dl_hint "${DL_RC:-7}")"
+  printf 'the Grafana package is not available: no offline bundle here and neither the package pieces on %s nor %s are reachable%s (%s). Fix: %s' "${PACKAGES_URL_BASE%%/tar.gz}" "$(bundle_url)" "${p:+ via proxy $p}" "${DL_ERR:-no answer}" "$(dl_hint "${DL_RC:-7}")"
 }

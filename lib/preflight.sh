@@ -166,20 +166,22 @@ run_preflight() {
       else fail "offline bundle at $BUNDLE_DIR is damaged or for other pins:$bad"; fix "remove $BUNDLE_DIR and run the installer again (it re-takes the bundle from an archive or downloads it)"; fi ;;
     archive) pass "offline archive found: $PKG_PLAN_DETAIL (install unpacks and verifies its bundle)" ;;
     repo) pass "online package sources reachable ($PKG_PLAN_DETAIL)" ;;
+    parts) pass "no local bundle; the packages will be fetched from GitHub${PKG_PROXY:+ via proxy $PKG_PROXY}: $PKG_PLAN_DETAIL (each SHA-256 checked)"
+           [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy; every piece and package is accepted only if its SHA-256 matches" ;;
     download) pass "no local bundle; the pinned offline archive is reachable${PKG_PROXY:+ via proxy $PKG_PROXY} and will be downloaded once: $PKG_PLAN_DETAIL"
               [ "${DL_INSECURE:-0}" = 1 ] && warn "TLS to GitHub is re-signed by an inspecting proxy; the download is accepted only if its SHA-256 equals the pin" ;;
-    missing) fail "the Grafana package cannot be obtained: no offline bundle here and $(bundle_url) is not reachable${PKG_PROXY:+ via proxy $PKG_PROXY}: ${DL_ERR:-no answer}"
+    missing) fail "the Grafana package cannot be obtained: no offline bundle here, and neither the package pieces on ${PACKAGES_URL_BASE%%/tar.gz} nor $(bundle_url) are reachable${PKG_PROXY:+ via proxy $PKG_PROXY}: ${DL_ERR:-no answer}"
              fix "$(dl_hint "${DL_RC:-7}")" ;;
   esac
   # required tools block; optional ones (backups, version lock, SELinux tooling) only warn
   local p; for p in $PREREQS_REQUIRED; do
-    if rpm -q "$p" >/dev/null 2>&1; then pass "prerequisite $p installed"; elif check_pkg_installable "$p"; then info "prerequisite $p will be installed from your repositories"; else fail "prerequisite $p is missing and not available from the enabled dnf repositories"; fix "enable RHEL BaseOS/AppStream (Satellite, mirror or mounted ISO), or: dnf install $p"; fi
+    if prereq_installed "$p"; then pass "prerequisite $p installed"; elif check_pkg_installable "$p"; then info "prerequisite $p will be installed from your repositories"; else fail "prerequisite $p is missing and not available from the enabled dnf repositories"; fix "enable RHEL BaseOS/AppStream (Satellite, mirror or mounted ISO), or: dnf install $p"; fi
   done
   for p in $PREREQS_OPTIONAL; do
     if rpm -q "$p" >/dev/null 2>&1; then pass "optional $p installed"; elif check_pkg_installable "$p"; then info "optional $p will be installed from your repositories"; else warn "optional $p unavailable: $(optional_purpose "$p") will not work until it is installed"; fi
   done
   if [ -n "$(node_bin)" ]; then pass "Node.js $("$(node_bin)" -v) available"
-  elif [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ] || [[ "$PKG_PLAN" =~ ^(archive|download|bundle)$ ]]; then pass "Node.js $NODE_BUNDLE_VERSION from the offline bundle"
+  elif [ -f "$BUNDLE_DIR/node/$NODE_BUNDLE_FILE" ] || [[ "$PKG_PLAN" =~ ^(archive|parts|download|bundle)$ ]]; then pass "Node.js $NODE_BUNDLE_VERSION from the offline bundle"
   elif check_pkg_installable nodejs; then info "Node.js will be installed from your repositories (AppStream, stream nodejs:20)"
   else fail "Node.js >= 18 is required (AppStream nodejs:20 or the offline bundle)"; fi
 

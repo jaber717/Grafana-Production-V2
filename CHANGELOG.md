@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.2.0] - 2026-10-25
+
+**Packages from GitHub in small pieces.** The production proxy cuts the single 336 MB release-asset download after ~895 KB; the packages now
+come from `codeload.github.com` (the host the source download already uses) in 1717 responses of < 200 KB each. Root cause, design and
+tests: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). No change to dashboards, UIDs, pins, configuration or the questions asked.
+
+### Added
+* `packages` branch: the pinned Grafana RPM, both plugins and Node.js split into 192 KiB pieces (one commit per piece);
+  `packages/MANIFEST.txt` on main lists every piece with its SHA-256; `tools/publish-packages.sh` re-creates both.
+* Package source "pieces": fetched 4 in parallel, each SHA-256 checked, retried 5 times, kept across runs (a re-run continues), joined and
+  checked against the pins. Preferred over the single release-asset download, which stays as a fallback.
+
+### Fixed
+* `curl-minimal` (RHEL 9 default) satisfies the curl prerequisite; before, the check failed or `dnf install curl` conflicted.
+* Preflight no longer requires Node.js before the packages are fetched when they include it.
+
 ## [2.1.1] - 2026-10-25
 
 **Fix: the pinned-archive download did not work behind an explicit HTTP proxy** (found on the production VM: "the Grafana package cannot be obtained"). No change to dashboards, UIDs, pins or the install flow.

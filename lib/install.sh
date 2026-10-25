@@ -5,9 +5,11 @@ PREREQS_REQUIRED="curl tar xz unzip openssl python3 gnupg2"
 PREREQS_OPTIONAL="sqlite python3-dnf-plugin-versionlock policycoreutils-python-utils"
 optional_purpose() { case "$1" in sqlite) echo "backups (sqlite3)" ;; python3-dnf-plugin-versionlock) echo "the dnf version lock" ;; *) echo "SELinux relabel helpers" ;; esac; }
 
+# RHEL 9 minimal installs ship curl-minimal (same /usr/bin/curl); installing "curl" over it conflicts, so either package counts.
+prereq_installed() { rpm -q "$1" >/dev/null 2>&1 || { [ "$1" = curl ] && rpm -q curl-minimal >/dev/null 2>&1; }; }
 ensure_prereqs() {
   local missing=() p
-  for p in $PREREQS_REQUIRED; do rpm -q "$p" >/dev/null 2>&1 || missing+=("$p"); done
+  for p in $PREREQS_REQUIRED; do prereq_installed "$p" || missing+=("$p"); done
   if [ "${#missing[@]}" -gt 0 ]; then info "installing prerequisites: ${missing[*]}"; dnf -y -q install "${missing[@]}" </dev/null >/dev/null || die "could not install: ${missing[*]} (enable RHEL BaseOS/AppStream)"; fi
   for p in $PREREQS_OPTIONAL; do rpm -q "$p" >/dev/null 2>&1 || dnf -y -q install "$p" </dev/null >/dev/null 2>&1 || warn "optional $p not installed: $(optional_purpose "$p") unavailable"; done
   pass "prerequisites present"

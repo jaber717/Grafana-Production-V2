@@ -40,6 +40,8 @@ createServer((req, res) => {
       const f = q.params.filter || {};
       return ok(hosts.filter((h) => (f.host && f.host.includes(h.host)) || (f.name && f.name.includes(h.name))));
     }
+    // read-only call made by the real Grafana Zabbix plugin's health check
+    if (q.method === 'hostgroup.get') return ok([{ groupid: '1', name: 'Routers' }]);
     if (q.method === 'item.get') return ok(items.filter((i) => q.params.hostids.includes(i.hostid) && (!q.params.filter || q.params.filter.key_.includes(i.key_))));
     err('Method not found.', `${q.method} is not allowed in the simulation (read-only)`);
   });
