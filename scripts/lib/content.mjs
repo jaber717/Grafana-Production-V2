@@ -3,7 +3,7 @@
 //   --item-map <file>  (or ZABBIX_ITEM_MAP_FILE in the env file)   {"<LAB zabbix item id>": "<item id on this Zabbix>"}
 import { join } from 'node:path';
 import { ROOT, repoDashboards } from './grafana.mjs';
-import { loadEnvFile, renderDatasources, loadItemMap, applyItemMap, itemIds, flag, deferredDatasources, datasourceRefs, deferReason } from './envcfg.mjs';
+import { loadEnvFile, renderDatasources, loadItemMap, applyItemMap, itemIds, flag, deferredDatasources, datasourceRefs, deferReason, adoptedZabbixUid, retargetDatasource } from './envcfg.mjs';
 import { readJson } from './grafana.mjs';
 
 export function loadContext(args) {
@@ -24,7 +24,9 @@ export function loadContext(args) {
 export function effectiveDashboards(ctx) {
   const off = new Set(deferredDatasources(ctx.env));
   const allowNoc = flag(ctx.env, 'ALLOW_NOC_WITHOUT_ITEM_MAP', true);
-  return repoDashboards().map(({ file, folderDir, dashboard }) => {
+  const adopted = adoptedZabbixUid(ctx.env);
+  return repoDashboards().map(({ file, folderDir, dashboard: repoDash }) => {
+    const dashboard = adopted ? retargetDatasource(repoDash, 'zabbix-lab', adopted) : repoDash;
     const needs = datasourceRefs(dashboard).filter((u) => off.has(u));
     if (needs.length) {
       const what = needs.map((u) => DS_LABEL[u] || u).join(' and ');

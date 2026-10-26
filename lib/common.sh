@@ -27,7 +27,7 @@ summary() { printf '\n%s: %d PASS, %d WARN, %d FAIL\n' "$1" "$PASS_N" "$WARN_N" 
 
 # How the operator invokes this command (bin/grafana-platform of an unpacked release, or the installed /usr/local/sbin link).
 CLI() {
-  if [ "$(readlink -f /usr/local/sbin/grafana-platform 2>/dev/null)" = "$RELEASE_DIR/bin/grafana-platform" ]; then echo "grafana-platform"
+  if [ "$(readlink -f /usr/local/sbin/grafana-platform 2>/dev/null)" = "$RELEASE_DIR/bin/grafana-platform" ] || [ "$(readlink -f /usr/sbin/grafana-platform 2>/dev/null)" = "$RELEASE_DIR/bin/grafana-platform" ]; then echo "grafana-platform"
   elif [ "$PWD" = "$RELEASE_DIR" ]; then echo "bin/grafana-platform"
   else echo "$RELEASE_DIR/bin/grafana-platform"; fi
 }

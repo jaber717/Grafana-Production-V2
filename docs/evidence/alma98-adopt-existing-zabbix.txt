@@ -1,0 +1,68 @@
+# AlmaLinux 9.8: state of the production screenshot reproduced with the published 2.2.2 (ZABBIX_ENABLED=no + a Zabbix datasource created by hand via the Grafana API, uid fg2enzlei1iwwa)
+# then: install.sh --dashboards (2.2.3 working tree): existing datasource adopted, login tested, 7 router host names, import
+
+log: /var/log/grafana-platform/dashboards-20261026-160107.log
+
+== Dashboards (Grafana itself is not reinstalled or restarted)
+[PASS] release 2.2.2 deployed to /opt/grafana-platform/releases/2.2.2 (command: /usr/local/sbin/grafana-platform)
+
+== Zabbix (optional: the NOC dashboards and the Zabbix data source)
+  Connect Zabbix now? [Y/n]: 
+  Use the Zabbix data source that already exists in Grafana, "Zabbix Production" (http://127.0.0.1:18080/api_jsonrpc.php), for the NOC dashboards? (it is not modified) [Y/n]: 
+    the Zabbix login is still needed once: it translates the LAB item ids of the NOC dashboards to this Zabbix (read-only)
+  Zabbix URL (e.g. http://10.20.8.24:8080) [http://127.0.0.1:18080/api_jsonrpc.php]: 
+    Zabbix uses plain HTTP: its password crosses the network unencrypted.
+  Allow unencrypted data-source connections on this isolated network? [y/N]: (answered)
+  Zabbix API user (read-only) [grafana-ro]: 
+  Zabbix password for grafana-ro: (hidden)
+    testing login ... OK (Zabbix 7.0.30, 7 host(s) visible)
+
+== Zabbix item map for the 2 NOC dashboards
+    These LAB router names are not in your Zabbix: SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B
+  Type their Zabbix host names now? (n = keep the NOC dashboards for later) [Y/n]: 
+  Zabbix host name for SITE-A (Enter = skip): (answered)
+  Zabbix host name for SITE-B (Enter = skip): (answered)
+  Zabbix host name for STC (Enter = skip): (answered)
+  Zabbix host name for MOBILY (Enter = skip): (answered)
+  Zabbix host name for INT-CORE (Enter = skip): (answered)
+  Zabbix host name for SAIX-A (Enter = skip): (answered)
+  Zabbix host name for SAIX-B (Enter = skip): (answered)
+    wrote /etc/grafana-platform/zabbix-item-map.json: 47 of 47 item(s) mapped (47 resolved now)
+    all items mapped
+    7 router uptime item(s) were matched by standard SNMP keys: confirm them in Zabbix (list: /etc/grafana-platform/zabbix-item-map.report.txt)
+
+== Importing the dashboards (matched by uid: re-running never duplicates)
+    unchanged folder netflow
+    unchanged folder noc
+    unchanged datasource fg2enzlei1iwwa "Zabbix Production" (existing Zabbix datasource, used as is, never modified)
+              health: OK Zabbix API version 7.0.30
+    note      netflow-asn: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-asn
+    note      netflow-exporters: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-exporters
+    note      netflow-health: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-health
+    note      netflow-overview: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-overview
+    note      netflow-top-talkers: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-top-talkers
+    updated   dashboard noc-device-health
+    updated   dashboard noc-wan-overview
+    applied: 0 created, 2 updated, 8 unchanged, 0 refused, 2 skipped
+
+== What Grafana holds now (read back through its API)
+  folder NetFlow (netflow): 5 dashboard(s) in Grafana, 5 managed
+    present  netflow-asn  "NetFlow | ASN & Internet"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-exporters  "NetFlow | Exporters & Interfaces"  9 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-health  "NetFlow | Platform Health"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-overview  "NetFlow | NOC Overview"  17 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-top-talkers  "NetFlow | Top Talkers"  14 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+  folder NOC (noc): 2 dashboard(s) in Grafana, 2 managed
+    present  noc-device-health  "NOC — Device Health"  10 panels  datasource: fg2enzlei1iwwa
+    present  noc-wan-overview  "NOC — WAN Overview"  6 panels  datasource: fg2enzlei1iwwa
+  dashboards: 7 of 7 present in Grafana; 2 complete, 5 with setup incomplete

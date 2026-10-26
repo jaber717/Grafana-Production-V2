@@ -167,3 +167,16 @@ test('ZABBIX_ENABLED=no: Grafana without Zabbix - no Zabbix datasource, NOC dash
   assert.deepEqual(renderDatasources(none), [], 'base Grafana only');
   assert.equal(py('ZABBIX_ENABLED=off\n').values.ZABBIX_ENABLED, 'no');
 });
+
+test('ZABBIX_DATASOURCE_UID: an existing Zabbix datasource is used by the NOC dashboards; the installer neither creates nor changes one', () => {
+  const env = ENV({ ZABBIX_DATASOURCE_UID: 'ffk3a9zbx', CLICKHOUSE_ENABLED: 'no' });
+  assert.deepEqual(renderDatasources(env).map((d) => d.uid), [], 'no managed Zabbix datasource is rendered');
+  const noc = effectiveDashboards({ env, envName: 'production', itemMap: fullMap }).filter((d) => NOC.includes(d.dashboard.uid));
+  for (const d of noc) {
+    assert.equal(d.state, 'ok');
+    assert.deepEqual(datasourceRefs(d.dashboard), ['ffk3a9zbx']);
+    assert.ok(!JSON.stringify(d.dashboard).includes('"zabbix-lab"'));
+  }
+  const off = ENV({ ZABBIX_DATASOURCE_UID: 'ffk3a9zbx', ZABBIX_ENABLED: 'no' });
+  assert.ok(effectiveDashboards({ env: off, envName: 'production', itemMap: fullMap }).filter((d) => NOC.includes(d.dashboard.uid)).every((d) => d.state === 'pending'), 'ZABBIX_ENABLED=no still wins');
+});

@@ -5,7 +5,7 @@
 // Exit 0 = PASS (WARN allowed), 1 = FAIL.
 import { get, URL_, parseArgs, readJson, repoPlugins, normalizeDashboard, canonical, dsComparable, fail } from './lib/grafana.mjs';
 import { loadContext, effectiveDashboards, effectivePlaylists } from './lib/content.mjs';
-import { deferredDatasources, deferReason } from './lib/envcfg.mjs';
+import { deferredDatasources, deferReason, adoptedZabbixUid } from './lib/envcfg.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from './lib/grafana.mjs';
@@ -27,7 +27,17 @@ const folders = readJson('config/folders.json');
 const liveFolders = new Map((await get('/api/folders')).map((f) => [f.uid, f.title]));
 for (const f of folders) rec(liveFolders.get(f.uid) === f.title ? 'PASS' : 'FAIL', `folder ${f.uid}`, liveFolders.has(f.uid) ? `title "${liveFolders.get(f.uid)}"` : 'missing');
 
+const adoptedUid = adoptedZabbixUid(CTX.env);
 if (!args['skip-datasources']) for (const uid of deferredDatasources(CTX.env)) rec('WARN', `datasource ${uid}`, `deferred by configuration (${deferReason(uid)})`);
+if (!args['skip-datasources'] && adoptedUid) {
+  const cur = await get(`/api/datasources/uid/${adoptedUid}`, { allow404: true });
+  if (!cur || cur.type !== 'alexanderzobnin-zabbix-datasource') rec('FAIL', `datasource ${adoptedUid} (ZABBIX_DATASOURCE_UID)`, cur ? `type ${cur.type}, not Zabbix` : 'missing');
+  else {
+    rec('PASS', `datasource ${adoptedUid}`, `existing Zabbix datasource "${cur.name}" (${cur.url}), used as is`);
+    const h = await get(`/api/datasources/uid/${adoptedUid}/health`).catch((e) => ({ status: 'ERROR', message: e.message }));
+    rec(h.status === 'OK' ? 'PASS' : 'FAIL', `datasource ${adoptedUid} health`, h.message || h.status);
+  }
+}
 for (const want of args['skip-datasources'] ? [] : CTX.datasources) {
   const cur = await get(`/api/datasources/uid/${want.uid}`, { allow404: true });
   if (!cur) { rec('FAIL', `datasource ${want.uid}`, 'missing'); continue; }

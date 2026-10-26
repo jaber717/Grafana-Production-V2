@@ -258,6 +258,8 @@ deploy_release() {
     rm -rf "$dest"; mv "$dest.new" "$dest"
   fi
   ln -sfn "$dest" "$OPT/current"; ln -sfn "$OPT/current/bin/grafana-platform" /usr/local/sbin/grafana-platform
+  # RHEL's sudo uses secure_path=/sbin:/bin:/usr/sbin:/usr/bin (no /usr/local/sbin): without this link 'sudo grafana-platform' is "command not found"
+  if [ ! -e /usr/sbin/grafana-platform ] || [ -L /usr/sbin/grafana-platform ]; then ln -sfn "$OPT/current/bin/grafana-platform" /usr/sbin/grafana-platform; fi
   RELEASE_DIR=$dest; LIBDIR="$dest/lib"
   pass "release $ver deployed to $dest (command: /usr/local/sbin/grafana-platform)"
 }

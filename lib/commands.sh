@@ -162,7 +162,7 @@ cmd_uninstall() {
   firewall-cmd -q --reload 2>/dev/null || true; pass "firewalld rules for $GRAFANA_HTTP_PORT/tcp removed (zone $zone)"
   rm -f /etc/yum.repos.d/grafana-platform.repo /etc/systemd/system/grafana-platform-backup.service /etc/systemd/system/grafana-platform-backup.timer
   systemctl daemon-reload >/dev/null 2>&1 || true
-  rm -f /usr/local/sbin/grafana-platform; [ "$(readlink -f /usr/local/bin/node 2>/dev/null)" = "$OPT/node/bin/node" ] && rm -f /usr/local/bin/node
+  rm -f /usr/local/sbin/grafana-platform; [ -L /usr/sbin/grafana-platform ] && rm -f /usr/sbin/grafana-platform; [ "$(readlink -f /usr/local/bin/node 2>/dev/null)" = "$OPT/node/bin/node" ] && rm -f /usr/local/bin/node
   rm -rf "${OPT:?}"; rm -f "$RELEASE_JSON" "$ETC/.install-started"
   pass "release, command link, units and repository definition removed"
   if [ "$purge" = 1 ]; then

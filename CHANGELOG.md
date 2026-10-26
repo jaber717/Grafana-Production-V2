@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.3] - 2026-10-26
+
+Production (2.2.2): all 7 dashboards imported, but both NOC dashboards said "Zabbix not connected" although a Zabbix data source works in
+Grafana, and `sudo grafana-platform setup --zabbix` answered "command not found".
+
+### Fixed
+* `sudo grafana-platform` on RHEL: RHEL's sudo `secure_path` (/sbin:/bin:/usr/sbin:/usr/bin) has no /usr/local/sbin. The command is now
+  also linked as /usr/sbin/grafana-platform (removed by `uninstall`).
+* A Zabbix data source created in Grafana by hand is now used instead of being ignored: `--dashboards` (and `--zabbix`) find it and ask
+  "Use the Zabbix data source that already exists ...?". Chosen: `ZABBIX_DATASOURCE_UID=<its uid>`, the NOC dashboards point at it, the
+  installer never creates a second one and never modifies it (apply and verify only read it and its /health).
+* `--dashboards` connects Zabbix first when it is not connected (`ZABBIX_ENABLED=no`), then builds the item map and imports.
+
 ## [2.2.2] - 2026-10-26
 
 **All 7 dashboards are always imported; nothing is silently skipped.** Production (2.2.1): both folders NetFlow and NOC existed but were

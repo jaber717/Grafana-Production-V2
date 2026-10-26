@@ -63,12 +63,25 @@ export function substitute(node, env) {
 export function deferredDatasources(env) {
   return [...(flag(env, 'ZABBIX_ENABLED', true) ? [] : ['zabbix-lab']), ...(flag(env, 'CLICKHOUSE_ENABLED', true) ? [] : ['netflow-clickhouse'])];
 }
+/** uid of an existing Zabbix datasource the dashboards use instead of the managed 'zabbix-lab' ('' = none). */
+export const adoptedZabbixUid = (env) => (flag(env, 'ZABBIX_ENABLED', true) && String(env.ZABBIX_DATASOURCE_UID || '').trim() !== 'zabbix-lab' ? String(env.ZABBIX_DATASOURCE_UID || '').trim() : '');
+/** Copy of a dashboard whose references to datasource uid `from` point at `to`. */
+export function retargetDatasource(dash, from, to) {
+  const copy = JSON.parse(JSON.stringify(dash));
+  (function walk(o) {
+    if (!o || typeof o !== 'object') return;
+    if (o.datasource && typeof o.datasource === 'object' && o.datasource.uid === from) o.datasource.uid = to;
+    Object.values(o).forEach(walk);
+  })(copy);
+  return copy;
+}
 const ENABLER = { 'zabbix-lab': 'ZABBIX_ENABLED', 'netflow-clickhouse': 'CLICKHOUSE_ENABLED' };
 export const deferReason = (uid) => `${ENABLER[uid] || 'configuration'}=no`;
 
 /** config/datasources.tmpl.json rendered with the environment (deferred datasources are left out, so their settings may be empty). */
 export function renderDatasources(env, root = ROOT) {
   const off = new Set(deferredDatasources(env));
+  if (adoptedZabbixUid(env)) off.add('zabbix-lab');   // an existing Zabbix datasource is used instead: nothing to create or change
   return JSON.parse(readFileSync(join(root, 'config', 'datasources.tmpl.json'), 'utf8')).filter((d) => !off.has(d.uid)).map((d) => substitute(d, env));
 }
 

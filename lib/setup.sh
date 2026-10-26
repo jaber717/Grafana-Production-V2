@@ -92,19 +92,39 @@ allow_insecure_ds() { # $1 = what; asks once per run
   INSECURE_DS_ASKED=1; return 1
 }
 
+# Zabbix datasources already in the running Grafana, except the installer's own: "uid<TAB>name<TAB>url<TAB>user" (nothing if Grafana is not up)
+existing_zabbix_datasources() {
+  [ -s "$SECRETS_DIR/admin-password" ] || return 0
+  curl_local -f -u "$GRAFANA_ADMIN_USER:$(secret admin-password)" "$(base_url)/api/datasources" 2>/dev/null | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    if d.get("type") == "alexanderzobnin-zabbix-datasource" and d.get("uid") != "zabbix-lab":
+        print("\t".join([d["uid"], d.get("name", ""), d.get("url", ""), (d.get("jsonData") or {}).get("username", "")]))' 2>/dev/null || true
+}
+
 q_zabbix() { # sets ZBX_STATE = on|off ; ZBX_PW_NEW
   head1 "Zabbix (optional: the NOC dashboards and the Zabbix data source)"
-  local dflt=y; [ "${ZABBIX_ENABLED:-yes}" = no ] && [ "$SETUP_FRESH" = 0 ] && dflt=n
+  local dflt=y; [ "${ZABBIX_ENABLED:-yes}" = no ] && [ "$SETUP_FRESH" = 0 ] && [ "${ZBX_ASK_DEFAULT:-}" != y ] && dflt=n
   if ! ask_yn "Connect Zabbix now?" "$dflt"; then SET+=("ZABBIX_ENABLED=no"); ZBX_STATE=off; return; fi
   local u url user pw r tries=0 have_pw=0
   local cur=${ZABBIX_URL:-}; [ "$SETUP_FRESH" = 1 ] && cur=""
+  local curuser=${ZABBIX_USER:-}; [ "$SETUP_FRESH" = 1 ] && curuser=""
+  # a Zabbix datasource created in Grafana by hand is used as is (never modified), instead of creating a second one
+  local ex_uid="" ex_name ex_url ex_user adopt_uid=""
+  while IFS=$'\t' read -r ex_uid ex_name ex_url ex_user; do
+    [ -n "$ex_uid" ] || continue
+    if ask_yn "Use the Zabbix data source that already exists in Grafana, \"$ex_name\" ($ex_url), for the NOC dashboards? (it is not modified)" y; then
+      adopt_uid=$ex_uid; cur=$ex_url; [ -n "$ex_user" ] && curuser=$ex_user
+      echo "    the Zabbix login is still needed once: it translates the LAB item ids of the NOC dashboards to this Zabbix (read-only)" >&2
+      break
+    fi
+  done < <(existing_zabbix_datasources)
   [ -s "$SECRETS_DIR/zabbix-password" ] && have_pw=1
   while :; do
     ask_required u "Zabbix URL (e.g. http://10.20.8.24:8080)" "$cur"; url=$(zabbix_api_url "$u")
     case "$url" in http://*) allow_insecure_ds "Zabbix" || { echo "    use the https URL of Zabbix, or answer y" >&2; cur=""; continue; } ;; https://*) ;; *) echo "    must start with http:// or https://" >&2; continue ;; esac
     break
   done
-  local curuser=${ZABBIX_USER:-}; [ "$SETUP_FRESH" = 1 ] && curuser=""
   ask_required user "Zabbix API user (read-only)" "$curuser"
   while :; do
     if [ "$have_pw" = 1 ] && [ "$tries" = 0 ]; then ask_secret pw "Zabbix password (Enter = keep the stored one)" 1; [ -z "$pw" ] && pw=$(secret zabbix-password)
@@ -120,7 +140,7 @@ q_zabbix() { # sets ZBX_STATE = on|off ; ZBX_PW_NEW
          case "$r" in *"not reachable"*) ask_required u "Zabbix URL" "$u"; url=$(zabbix_api_url "$u") ;; *"login"*) ask_required user "Zabbix API user" "$user" ;; esac ;;
     esac
   done
-  SET+=("ZABBIX_ENABLED=yes" "ZABBIX_URL=$url" "ZABBIX_USER=$user")
+  SET+=("ZABBIX_ENABLED=yes" "ZABBIX_URL=$url" "ZABBIX_USER=$user" "ZABBIX_DATASOURCE_UID=$adopt_uid")
   ZBX_PW_NEW=$pw; ZBX_STATE=on
 }
 
@@ -261,10 +281,17 @@ dashboards_report() { run_content_tool dashboards-report --item-map "$ZABBIX_ITE
 # map (asks the Zabbix host names it cannot find), applies the content idempotently (matched by uid: no duplicates) and reports from the API.
 setup_dashboards_only() {
   [ -f "$ENV_INSTALLED" ] && [ -f "$RELEASE_JSON" ] || die "Grafana is not installed by this tool yet: run 'sudo ./install.sh' first"
+  SETUP_FRESH=0
   load_env; log_to_file dashboards
   head1 "Dashboards (Grafana itself is not reinstalled or restarted)"
   curl_local -o /dev/null -f "$(base_url)/api/health" || die "Grafana does not answer at $(base_url) — start it first: systemctl start grafana-server"
   deploy_release >&2; write_release_json
+  if ! zabbix_enabled || { [ -z "${ZABBIX_DATASOURCE_UID:-}" ] && [ -n "$(existing_zabbix_datasources)" ] && ! curl_local -sf -o /dev/null -u "$GRAFANA_ADMIN_USER:$(secret admin-password)" "$(base_url)/api/datasources/uid/zabbix-lab"; }; then
+    SET=(); ZBX_PW_NEW=""; ZBX_ASK_DEFAULT=y q_zabbix
+    if [ "${#SET[@]}" -gt 0 ]; then env_parser set "$ENV_INSTALLED" "${SET[@]}" >/dev/null || die "could not save the settings"; chmod 0640 "$ENV_INSTALLED"; fi
+    [ -n "$ZBX_PW_NEW" ] && { printf '%s' "$ZBX_PW_NEW" | store_secret zabbix-password; ZBX_PW_NEW=""; }
+    load_env
+  fi
   MAP_STATE=""; setup_item_map
   head1 "Importing the dashboards (matched by uid: re-running never duplicates)"
   ( run_content_tool apply --item-map "$ZABBIX_ITEM_MAP_FILE" ) 2>&1 | tee -a "$LOGDIR/setup-last-dashboards.txt" | grep -E '^(created|updated|unchanged|refused|note) |health:|^applied' | sed 's/^/    /' >&2 || true

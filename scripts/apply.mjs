@@ -15,7 +15,7 @@
 // unless --allow-title-conflicts is given.
 import { api, get, URL_, parseArgs, readJson, repoPlugins, normalizeDashboard, canonical, dsComparable, ApiError, fail } from './lib/grafana.mjs';
 import { loadContext, effectiveDashboards, effectivePlaylists } from './lib/content.mjs';
-import { deferredDatasources, deferReason } from './lib/envcfg.mjs';
+import { deferredDatasources, deferReason, adoptedZabbixUid } from './lib/envcfg.mjs';
 
 const args = parseArgs(process.argv.slice(2));
 const CTX = loadContext(args);
@@ -58,6 +58,16 @@ if (!args['skip-dashboards'] && !args['datasource-only']) {
 // ---- datasources -----------------------------------------------------------------------------------------------
 if (!args['skip-datasources']) {
   for (const uid of deferredDatasources(CTX.env)) say('skipped', `datasource ${uid}: deferred by configuration (${deferReason(uid)})`);
+  const adopted = adoptedZabbixUid(CTX.env);
+  if (adopted) {
+    const cur = await get(`/api/datasources/uid/${adopted}`, { allow404: true });
+    if (!cur) say('refused', `datasource ${adopted} (ZABBIX_DATASOURCE_UID) does not exist in Grafana; the NOC dashboards would point at nothing`);
+    else if (cur.type !== 'alexanderzobnin-zabbix-datasource') say('refused', `datasource ${adopted} is of type ${cur.type}, not Zabbix`);
+    else {
+      say('unchanged', `datasource ${adopted} "${cur.name}" (existing Zabbix datasource, used as is, never modified)`);
+      if (!DRY) { const h = await get(`/api/datasources/uid/${adopted}/health`).catch((e) => ({ status: 'ERROR', message: e.message })); console.log(`          health: ${h.status} ${h.message || ''}`); }
+    }
+  }
   for (const want of CTX.datasources.map(sandbox)) {
     const cur = await get(`/api/datasources/uid/${want.uid}`, { allow404: true });
     const envName = SECRET_ENV[want.uid];
