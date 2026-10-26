@@ -1,0 +1,82 @@
+# Browser acceptance of the 2.3.0 NOC dashboards: real Grafana 13.2.3 + real Zabbix plugin 6.8.0 (AlmaLinux 9.8), Zabbix = tests/noc/zabbix7-api.mjs (strict 7.0 parameters).
+# State: production-like (Zabbix data source created by hand in Grafana and adopted, uid eg2etwwgstp1ce), Device Type groups = defaults.
+# Earlier run with "Network/WAN Edge" added to Router via the Device Type step: 81 PASS, 0 FAIL (same checks + that router).
+
+### Device Type -> Device list comes from Zabbix host groups
+  [PASS] Device Type All: devices offered = ['RYD-ACC-SW-07', 'RYD-CORE-SW-01', 'RYD-FW-01', 'RYD-FW-02', 'RYD-RTR-01', 'RYD-RTR-02']
+  [PASS] Device Type All: no non-network host offered
+  [PASS] Device Type Router: devices offered = ['RYD-RTR-01', 'RYD-RTR-02']
+  [PASS] Device Type Router: no non-network host offered
+  [PASS] Device Type Switch: devices offered = ['RYD-ACC-SW-07', 'RYD-CORE-SW-01']
+  [PASS] Device Type Switch: no non-network host offered
+  [PASS] Device Type Firewall: devices offered = ['RYD-FW-01', 'RYD-FW-02']
+  [PASS] Device Type Firewall: no non-network host offered
+### Every device: chosen in the UI, every panel answered from Zabbix
+  [PASS] RYD-RTR-01: URL follows the UI choice
+  [PASS] RYD-RTR-01: Interface list = the 4 interfaces Zabbix discovered
+  [PASS] RYD-RTR-01: no query error
+  [PASS] RYD-RTR-01: ICMP ping -> 1 series
+  [PASS] RYD-RTR-01: SNMP availability -> 1 series
+  [PASS] RYD-RTR-01: CPU -> 1 series
+  [PASS] RYD-RTR-01: Memory -> 1 series
+  [PASS] RYD-RTR-01: Interface status -> 4 series
+  [PASS] RYD-RTR-01: Interface traffic -> 8 series
+  [PASS] RYD-RTR-02: URL follows the UI choice
+  [PASS] RYD-RTR-02: Interface list = the 3 interfaces Zabbix discovered
+  [PASS] RYD-RTR-02: no query error
+  [PASS] RYD-RTR-02: ICMP ping -> 1 series
+  [PASS] RYD-RTR-02: SNMP availability -> 1 series
+  [PASS] RYD-RTR-02: CPU -> 1 series
+  [PASS] RYD-RTR-02: Memory -> 1 series
+  [PASS] RYD-RTR-02: Interface status -> 3 series
+  [PASS] RYD-RTR-02: Interface traffic -> 6 series
+  [PASS] RYD-ACC-SW-07: URL follows the UI choice
+  [PASS] RYD-ACC-SW-07: Interface list shows Zabbix's interfaces (9 rendered) and finds 'Gi1/0/9' by typing
+  [PASS] RYD-ACC-SW-07: no query error
+  [PASS] RYD-ACC-SW-07: ICMP ping -> 0 series
+  [PASS] RYD-ACC-SW-07: SNMP availability -> 1 series
+  [PASS] RYD-ACC-SW-07: CPU -> 1 series
+  [PASS] RYD-ACC-SW-07: Memory -> 1 series
+  [PASS] RYD-ACC-SW-07: Interface status -> 48 series
+  [PASS] RYD-ACC-SW-07: Interface traffic -> 96 series
+  [PASS] RYD-CORE-SW-01: URL follows the UI choice
+  [PASS] RYD-CORE-SW-01: Interface list shows Zabbix's interfaces (9 rendered) and finds 'XGigabitEthernet0/0/9' by typing
+  [PASS] RYD-CORE-SW-01: no query error
+  [PASS] RYD-CORE-SW-01: ICMP ping -> 1 series
+  [PASS] RYD-CORE-SW-01: SNMP availability -> 1 series
+  [PASS] RYD-CORE-SW-01: CPU -> 2 series
+  [PASS] RYD-CORE-SW-01: Memory -> 1 series
+  [PASS] RYD-CORE-SW-01: Interface status -> 24 series
+  [PASS] RYD-CORE-SW-01: Interface traffic -> 48 series
+  [PASS] RYD-FW-01: URL follows the UI choice
+  [PASS] RYD-FW-01: Interface list = the 4 interfaces Zabbix discovered
+  [PASS] RYD-FW-01: no query error
+  [PASS] RYD-FW-01: ICMP ping -> 1 series
+  [PASS] RYD-FW-01: SNMP availability -> 1 series
+  [PASS] RYD-FW-01: CPU -> 1 series
+  [PASS] RYD-FW-01: Memory -> 1 series
+  [PASS] RYD-FW-01: Interface status -> 4 series
+  [PASS] RYD-FW-01: Interface traffic -> 8 series
+  [PASS] RYD-FW-02: URL follows the UI choice
+  [PASS] RYD-FW-02: Interface list = the 2 interfaces Zabbix discovered
+  [PASS] RYD-FW-02: no query error
+  [PASS] RYD-FW-02: ICMP ping -> 1 series
+  [PASS] RYD-FW-02: SNMP availability -> 1 series
+  [PASS] RYD-FW-02: CPU -> 2 series
+  [PASS] RYD-FW-02: Memory -> 1 series
+  [PASS] RYD-FW-02: Interface status -> 2 series
+  [PASS] RYD-FW-02: Interface traffic -> 4 series
+### One interface chosen in the Interface picker
+  [PASS] RYD-RTR-01 / Gi0/1: traffic query asks for that interface only
+  [PASS] RYD-RTR-01 / Gi0/1: traffic = 2 series (received, sent)
+### NOC — Network Overview: every device of the type
+  [PASS] Overview All: ICMP table = 5 devices
+  [PASS] Overview All: CPU table = 8 series
+  [PASS] Overview Router: ICMP table = 2 devices
+  [PASS] Overview Router: CPU table = 2 series
+  [PASS] Overview Switch: ICMP table = 1 devices
+  [PASS] Overview Switch: CPU table = 3 series
+  [PASS] Overview Firewall: ICMP table = 2 devices
+  [PASS] Overview Firewall: CPU table = 3 series
+
+UI ACCEPTANCE: 72 PASS, 0 FAIL

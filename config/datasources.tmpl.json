@@ -30,7 +30,7 @@
     "jsonData": {
       "alerting": true,
       "authType": "user and password",
-      "cacheTTL": "1h",
+      "cacheTTL": "@@ZABBIX_CACHE_TTL@@",
       "tlsSkipVerify": "@@ZABBIX_TLS_SKIP_VERIFY:bool@@",
       "trends": true,
       "username": "@@ZABBIX_USER@@"

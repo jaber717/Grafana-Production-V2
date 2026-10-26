@@ -176,34 +176,6 @@ show_settings() {
 }
 
 # ---------------------------------------------------------------------------------------------------------------- item map
-setup_item_map() { # after Grafana is installed; never fatal
-  zabbix_enabled || return 0
-  head1 "Zabbix item map for the 2 NOC dashboards"
-  local out rc=0 hosts=() h n
-  out=$(zabbix_tool --out "$ZABBIX_ITEM_MAP_FILE" --merge </dev/null 2>&1) || rc=$?
-  if [ "$rc" = 3 ] && [ "$OPT_YES" != 1 ]; then
-    mapfile -t hosts < <(grep -E '^  - [0-9]+: host ".*not found' <<<"$out" | sed -E 's/.*\(LAB name ([^)]+)\) not found.*/\1/; s/.*host "([^"]+)" not found.*/\1/' | awk '!s[$0]++')
-    if [ "${#hosts[@]}" -gt 0 ]; then
-      echo "    These LAB router names are not in your Zabbix: ${hosts[*]}" >&2
-      if ask_yn "Type their Zabbix host names now? (n = keep the NOC dashboards for later)" y; then
-        local args=()
-        for h in "${hosts[@]}"; do ask n "Zabbix host name for $h (Enter = skip)" ""; [ -n "$n" ] && args+=(--host "$h=$n"); done
-        [ "${#args[@]}" -gt 0 ] && { rc=0; out=$(zabbix_tool --out "$ZABBIX_ITEM_MAP_FILE" --merge "${args[@]}" </dev/null 2>&1) || rc=$?; }
-      fi
-    fi
-  fi
-  [ -f "$ZABBIX_ITEM_MAP_FILE" ] && { chmod 0640 "$ZABBIX_ITEM_MAP_FILE"; getent group grafana >/dev/null 2>&1 && chgrp grafana "$ZABBIX_ITEM_MAP_FILE"; }
-  printf '%s\n' "$out" > "$ETC/zabbix-item-map.report.txt"; chmod 0640 "$ETC/zabbix-item-map.report.txt"
-  grep -E '^(wrote|all items|[0-9]+ item)' <<<"$out" | sed 's/^/    /' >&2 || true
-  local nrev; nrev=$(grep -c 'via key' <<<"$out" || true)
-  [ "${nrev:-0}" -gt 0 ] && echo "    $nrev router uptime item(s) were matched by standard SNMP keys: confirm them in Zabbix (list: $ETC/zabbix-item-map.report.txt)" >&2
-  grep -E '^  - ' <<<"$out" | grep -v 'via key' | head -10 | sed 's/^/  /' >&2 || true
-  case "$rc" in
-    0) MAP_STATE=complete ;;
-    3) MAP_STATE=partial ;;
-    *) MAP_STATE=error; echo "    item map could not be built (Zabbix unreachable?); the NOC dashboards stay deferred" >&2 ;;
-  esac
-}
 
 # ---------------------------------------------------------------------------------------------------------------- main
 cmd_setup() {
@@ -261,24 +233,77 @@ cmd_setup() {
     exit "$rc"
   fi
   load_env
-  MAP_STATE=""
   if zabbix_enabled; then
-    local before=""; [ -f "$ZABBIX_ITEM_MAP_FILE" ] && before=$(sha256sum "$ZABBIX_ITEM_MAP_FILE")
-    setup_item_map
-    if [ "$MAP_STATE" != error ] && [ "$before" != "$(sha256sum "$ZABBIX_ITEM_MAP_FILE" 2>/dev/null)" ]; then
-      head1 "Deploying the dashboards the item map enables"
-      ( run_content_tool apply --item-map "$ZABBIX_ITEM_MAP_FILE" ) 2>&1 | tee -a "$LOGDIR/setup-last-install.txt" | grep -E '^(created|updated|refused)|health:|^applied' | sed 's/^/    /' >&2 || true
+    NOC_CHANGED=0; setup_noc_groups
+    if [ "$NOC_CHANGED" = 1 ]; then
+      head1 "Updating the NOC dashboards with the chosen host groups"
+      ( run_content_tool apply --skip-datasources ) 2>&1 | tee -a "$LOGDIR/setup-last-install.txt" | grep -E '^(created|updated|refused)|^applied' | sed 's/^/    /' >&2 || true
     fi
   fi
   setup_summary
+}
+
+# NOC dashboards: "Device Type" = Zabbix host groups. Reads the host groups that exist in Zabbix (read-only), shows which ones each type
+# matches, and lets the operator confirm or name them once. Afterwards devices, interfaces and metrics are selected in Grafana only.
+# Asked once: afterwards the three choices are saved and a re-run only shows them; '$1 = ask' (setup --dashboards) asks again.
+# Sets NOC_CHANGED=1 when NOC_GROUPS_* were changed. Never fatal.
+setup_noc_groups() {
+  zabbix_enabled || return 0
+  head1 "NOC dashboards: which Zabbix host groups are routers, switches and firewalls"
+  local out groups show empty t label a rx sets=()
+  out=$(PROBE_PASSWORD="$(secret zabbix-password)" PROBE_CA_FILE="${ZABBIX_CA_FILE:-}" probe hostgroups "$ZABBIX_URL" "$ZABBIX_USER" 2>&1) || true
+  case "$out" in
+    OK*) ;;
+    *) echo "    could not read the Zabbix host groups (${out#ERR }); Device Type keeps its patterns (group names containing router / switch / firewall)." >&2
+       echo "    Choose the groups later: sudo grafana-platform setup --dashboards" >&2; return 0 ;;
+  esac
+  groups=$(tail -n +2 <<<"$out")
+  noc_show() {
+    show=$(python3 "$LIBDIR/nocgroups.py" show "${NOC_GROUPS_ROUTER:-}" "${NOC_GROUPS_SWITCH:-}" "${NOC_GROUPS_FIREWALL:-}" <<<"$groups")
+    while IFS=$'\x1f' read -r t rx a; do
+      case "$t" in ROUTER) label="Router  " ;; SWITCH) label="Switch  " ;; FIREWALL) label="Firewall" ;; *) label="not used" ;; esac
+      printf '    %s : %s\n' "$label" "${a:-(no host group)}" >&2
+    done <<<"$show"
+  }
+  noc_show
+  empty=$(awk -F'\x1f' '$1 != "OTHER" && $3 == "" {print $1}' <<<"$show")
+  [ "$OPT_YES" = 1 ] && return 0
+  if [ "${1:-}" != ask ] && [ -n "${NOC_GROUPS_ROUTER:-}" ] && [ -n "${NOC_GROUPS_SWITCH:-}" ] && [ -n "${NOC_GROUPS_FIREWALL:-}" ]; then
+    echo "    (chosen earlier; change with: sudo grafana-platform setup --dashboards)" >&2; return 0
+  fi
+  if [ -z "$empty" ] && ask_yn "Use these host groups for the Device Type choice? (n = name them yourself)" y; then noc_save_current; return 0; fi
+  echo "    For each type: Zabbix host group names separated by ';' (or a /regex/). Enter keeps the line above." >&2
+  for t in ROUTER SWITCH FIREWALL; do
+    case "$t" in ROUTER) label="Router" ;; SWITCH) label="Switch" ;; FIREWALL) label="Firewall" ;; esac
+    ask a "Host groups for $label" ""
+    [ -n "$a" ] || continue
+    rx=$(python3 "$LIBDIR/nocgroups.py" regex "$a" 2>/dev/null) || { echo "    not a valid /regex/: $a (line kept)" >&2; continue; }
+    sets+=("NOC_GROUPS_$t=$rx")
+  done
+  if [ "${#sets[@]}" -gt 0 ]; then
+    env_parser set "$ENV_INSTALLED" "${sets[@]}" >/dev/null || { echo "    could not save the host groups" >&2; return 0; }
+    chmod 0640 "$ENV_INSTALLED"; load_env; NOC_CHANGED=1
+    echo "    saved; Device Type now offers:" >&2; noc_show
+  fi
+  noc_save_current
+}
+# write the effective pattern of every type (default when unset) so that the choice is explicit and not asked again
+noc_save_current() {
+  local t v cur sets=()
+  for t in ROUTER SWITCH FIREWALL; do
+    cur=$(awk -F'\x1f' -v t="$t" '$1 == t {print $2}' <<<"$show")
+    v="NOC_GROUPS_$t"; [ -z "${!v:-}" ] && [ -n "$cur" ] && sets+=("NOC_GROUPS_$t=$cur")
+  done
+  if [ "${#sets[@]}" -gt 0 ]; then env_parser set "$ENV_INSTALLED" "${sets[@]}" >/dev/null && chmod 0640 "$ENV_INSTALLED" && load_env; fi
+  return 0
 }
 
 # What Grafana really holds (GET /api/search, /api/dashboards/uid/...), not what was intended. Exit 1 if a managed dashboard is missing.
 dashboards_report() { run_content_tool dashboards-report --item-map "$ZABBIX_ITEM_MAP_FILE" "$@" 2>&1; }
 
 # sudo ./install.sh --dashboards : (re)import every managed dashboard into the running Grafana. Does not touch the Grafana package,
-# grafana.ini, the service, the firewall or the datasources' settings; updates this release's tool files, builds/extends the Zabbix item
-# map (asks the Zabbix host names it cannot find), applies the content idempotently (matched by uid: no duplicates) and reports from the API.
+# grafana.ini, the service, the firewall or the datasources' settings; updates this release's tool files, connects Zabbix when needed,
+# maps Device Type to the Zabbix host groups, applies the content idempotently (matched by uid: no duplicates) and reports from the API.
 setup_dashboards_only() {
   [ -f "$ENV_INSTALLED" ] && [ -f "$RELEASE_JSON" ] || die "Grafana is not installed by this tool yet: run 'sudo ./install.sh' first"
   SETUP_FRESH=0
@@ -292,7 +317,7 @@ setup_dashboards_only() {
     [ -n "$ZBX_PW_NEW" ] && { printf '%s' "$ZBX_PW_NEW" | store_secret zabbix-password; ZBX_PW_NEW=""; }
     load_env
   fi
-  MAP_STATE=""; setup_item_map
+  NOC_CHANGED=0; setup_noc_groups ask
   head1 "Importing the dashboards (matched by uid: re-running never duplicates)"
   ( run_content_tool apply --item-map "$ZABBIX_ITEM_MAP_FILE" ) 2>&1 | tee -a "$LOGDIR/setup-last-dashboards.txt" | grep -E '^(created|updated|unchanged|refused|note) |health:|^applied' | sed 's/^/    /' >&2 || true
   head1 "What Grafana holds now (read back through its API)"

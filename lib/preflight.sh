@@ -185,7 +185,9 @@ run_preflight() {
   elif check_pkg_installable nodejs; then info "Node.js will be installed from your repositories (AppStream, stream nodejs:20)"
   else fail "Node.js >= 18 is required (AppStream nodejs:20 or the offline bundle)"; fi
 
-  if zabbix_enabled; then
+  # the LAB item map only matters while a dashboard still addresses Zabbix items by id (none does since 2.3.0: the NOC dashboards
+  # select hosts, interfaces and items from Zabbix at view time)
+  if zabbix_enabled && grep -rqs '"itemids"' "$RELEASE_DIR/dashboards"; then
   step "NOC dashboards: Zabbix item map ($ZABBIX_ITEM_MAP_FILE)"
   local need_n missing_n missing_ids mapstate
   mapstate=$(python3 - "$RELEASE_DIR" "$ZABBIX_ITEM_MAP_FILE" <<'PY'

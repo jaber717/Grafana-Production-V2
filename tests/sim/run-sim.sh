@@ -143,6 +143,7 @@ ENVF="$W/root/grafana.env"; mkdir -p "$W/root"
 mgf() { curl -s -u "admin:$(cat "$W/sys/etc/grafana-platform/secrets/admin-password")" "http://127.0.0.1:$GF_PORT$1"; }
 # dashboard content checks against the mock Grafana ($1 = fetch function mgf|mgf2, $2 = uid)
 has_notice() { "$1" "/api/dashboards/uid/$2" | python3 -c "import json,sys;d=json.load(sys.stdin)[\"dashboard\"];sys.exit(0 if d[\"panels\"][0][\"title\"]==\"Setup still incomplete\" else 1)"; }
+no_item_ids() { "$1" "/api/dashboards/uid/$2" | python3 -c "import sys;s=sys.stdin.read();sys.exit(1 if '\"itemids\"' in s else 0)"; }
 no_lab_ids() { "$1" "/api/dashboards/uid/$2" | python3 -c "import json,sys,re;s=json.dumps(json.load(sys.stdin));lab=set(json.load(open(\"$V2/config/zabbix-item-descriptors.json\"))[\"items\"]);ids=set(i for m in re.findall(r'\"itemids\": \"([^\"]*)\"',s) for i in m.split(\",\") if i);sys.exit(1 if ids & lab else 0)"; }
 
 # ------------------------------------------------------------------ 1.x reproduction
@@ -215,7 +216,7 @@ check "Grafana over HTTP is a WARN" 'out_has "\[WARN\] Grafana listens with plai
 check "missing zabbix-password FAIL carries the exact command" 'out_has "\[FAIL\] secret zabbix-password is missing" && out_has "fix:.*secret set zabbix-password"'
 check "clickhouse-password is NOT required while NetFlow is deferred" 'out_lacks "clickhouse-password is missing" && out_has "NetFlow not connected"'
 check "offline bundle found automatically: no rpm.grafana.com/grafana.com FAIL" 'out_has "offline bundle at .*every artifact matches the pins" && out_lacks "cannot be obtained"'
-check "missing item map is NOT a blocker: NOC dashboards imported with a notice (WARN)" 'out_has "\[WARN\] NOC item map incomplete: no item map yet" && out_lacks "\[FAIL\] NOC"'
+check "no LAB item map anywhere in preflight: the NOC dashboards need none" 'out_lacks "item map" && out_lacks "\[FAIL\] NOC"'
 check "Zabbix reachability probed read-only" 'out_has "Zabbix API answers at .* \(version 7.0.30\)"'
 check "every FAIL line is followed by a fix line" '[ "$(grep -c "^\[FAIL\]" "$W/out")" -le "$(grep -c "fix:" "$W/out")" ]'
 
@@ -243,7 +244,7 @@ check "grafana.ini rendered for http, cookie_secure=false, secrets by \$__file" 
 check "plugins extracted from the bundle after SHA-256 check" 'out_has "plugin alexanderzobnin-zabbix-app .* installed \(SHA-256 verified\)"'
 check "Zabbix datasource created over HTTP and its health check logs in for real" 'out_has "created +datasource zabbix-lab" && out_has "health: OK Zabbix API login OK"'
 check "ClickHouse datasource and playlist skipped; the 5 NetFlow dashboards ARE deployed, each with a notice panel" 'out_has "skipped +datasource netflow-clickhouse" && out_has "note +netflow-overview: deployed with a notice panel" && out_has "skipped +playlist" && has_notice mgf netflow-overview'
-check "NOC dashboards deployed without an item map: notice panel, and NO LAB item id reaches this Zabbix" 'out_has "note +noc-device-health: deployed with a notice panel" && has_notice mgf noc-device-health && no_lab_ids mgf noc-device-health && no_lab_ids mgf noc-wan-overview'
+check "NOC dashboards deployed complete WITHOUT any item map: no notice, no item id, Device Type/Device/Interface variables" 'out_has "created +dashboard noc-device-health" && ! has_notice mgf noc-device-health && no_item_ids mgf noc-device-health && no_item_ids mgf noc-wan-overview && mgf /api/dashboards/uid/noc-device-health | grep -q "\"queryType\":\"itemTag\""'
 check "mock Grafana holds 1 datasource and all 7 dashboards (no empty folder)" '[ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && mgf /api/datasources/uid/zabbix-lab | grep -q "\"url\":\"$ZBX_URL\"" && [ "$(mgf /api/datasources/uid/netflow-clickhouse | grep -c uid)" = 0 ]'
 check "release deployed with its bundle; command linked" '[ -L /usr/local/sbin/grafana-platform ] && [ -f "$W/sys/opt/grafana-platform/releases/$VER/bundle/SHA256SUMS" ]'
 check "the bundled RPM is cached for rollbacks" 'ls "$W/sys/backups/rpm/"grafana-*.rpm >/dev/null 2>&1'
@@ -258,11 +259,8 @@ check "item map file 0640 and only numeric ids" '[ "$(stat -c %a "$W/sys/etc/gra
 check "only read-only Zabbix methods were called" 'curl -s "http://127.0.0.1:$ZBX_PORT/__calls" | python3 -c "import json,sys;c=set(json.load(sys.stdin));assert c<= {\"apiinfo.version\",\"user.login\",\"user.logout\",\"host.get\",\"item.get\"},c"'
 gp config set ALLOW_NOC_WITHOUT_ITEM_MAP=no
 gp apply; rc=$?
-check "apply deploys the 2 NOC dashboards (rc=$rc)" '[ $rc = 0 ] && out_has "(created|updated) +dashboard noc-device-health" && out_has "(created|updated) +dashboard noc-wan-overview" && ! has_notice mgf noc-device-health && ! has_notice mgf noc-wan-overview'
-check "deployed NOC dashboards carry production item ids, no LAB id remains" 'mgf /api/dashboards/uid/noc-device-health | python3 -c "
-import json,sys,re
-d=json.load(sys.stdin)[\"dashboard\"]; ids=re.findall(r\"\\\"itemids\\\": *\\\"([0-9,]+)\\\"\",json.dumps(d))
-assert ids and all(int(i)>=900000 for s in ids for i in s.split(\",\")), ids"'
+check "apply keeps the 2 NOC dashboards complete (rc=$rc)" '[ $rc = 0 ] && out_has "(created|updated|unchanged) +dashboard noc-device-health" && out_has "(created|updated|unchanged) +dashboard noc-wan-overview" && ! has_notice mgf noc-device-health && ! has_notice mgf noc-wan-overview'
+check "the legacy item map does not touch the NOC dashboards: no item id in them" 'no_item_ids mgf noc-device-health && no_item_ids mgf noc-wan-overview'
 check "verify after apply: no FAIL" 'out_has "APPLY: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
 
 section "2.0 enabling ClickHouse/Akvorado later (three single-line commands)"
@@ -289,10 +287,10 @@ gp init-env "$ENVF" --yes GRAFANA_DOMAIN=10.20.8.27 GRAFANA_PROTOCOL=http GRAFAN
 gpi secret set zabbix-password --env-file "$ENVF" < "$W/zbx.pw" > /dev/null
 mkdir -p "$W/sys/etc/grafana-platform"; echo '{"51128":"900001"}' > "$W/sys/etc/grafana-platform/zabbix-item-map.json"
 gp preflight --env-file "$ENVF"; rc=$?
-check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=no -> FAIL with fix (rc=$rc)" '[ $rc != 0 ] && out_has "item map misses 46 of 47"'
+check "a partial LAB item map no longer blocks anything, even with ALLOW_NOC_WITHOUT_ITEM_MAP=no (rc=$rc)" '[ $rc = 0 ] && out_lacks "item map misses"'
 gp config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes --env-file "$ENVF"
 gp install --env-file "$ENVF"; rc=$?
-check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards deployed with a notice, mapped ids used, no LAB id (rc=$rc)" '[ $rc = 0 ] && out_has "note +noc-wan-overview: deployed with a notice panel - [0-9]+ of [0-9]+ Zabbix item" && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && has_notice mgf noc-wan-overview && no_lab_ids mgf noc-wan-overview && no_lab_ids mgf noc-device-health'
+check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards complete, no item id (rc=$rc)" '[ $rc = 0 ] && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && ! has_notice mgf noc-wan-overview && no_item_ids mgf noc-wan-overview'
 
 section "2.0 repo mode on an isolated host: one FAIL, with the way out"
 reset_host
@@ -320,21 +318,21 @@ setup() { local r=0; rm -f "$W/sys/var/log/grafana-platform/setup-last-install.t
 mgf2() { curl -s -u "admin:$(cat "$W/admin.pw")" "http://127.0.0.1:$GF_PORT$1"; }
 count() { mgf2 "$1" | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"; }
 # answers, one per line: address, networks, protocol, Zabbix? URL, allow http?, user, WRONG password, try again?, user(keep), password,
-#                        ClickHouse?, admin password, map host names? + 7 names
+#                        ClickHouse?, admin password, then the Device Type step: Zabbix has only "WAN Routers", so Switch and
+#                        Firewall have no host group and the three types are asked (Enter = keep the pattern)
 { echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo; echo "http://127.0.0.1:$ZBX_PORT"; echo y; echo "$ZBX_USER"; echo wrong-password; echo; echo; cat "$W/zbx.pw"; echo
-  echo; cat "$W/admin.pw"; echo; echo
-  for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
+  echo; cat "$W/admin.pw"; echo; echo; echo; echo; } > "$W/answers"
 setup; rc=$?; cp "$W/out" "$W/setup-first.txt"
 check "sudo ./install.sh completes in one run (rc=$rc)" '[ $rc = 0 ] && out_has "Grafana is installed:  http://10.20.8.27:3000/"'
 check "the offline archive next to the clone was found, verified against the pins and unpacked" 'out_has "offline archive found: .*clone/grafana-platform-" && out_has "offline bundle unpacked from .* match the pins"'
 check "the Zabbix URL got /api_jsonrpc.php appended, HTTP was allowed only after the explicit question" 'grep -q "^ZABBIX_URL=$ZBX_URL$" /etc/grafana-platform/platform.env && grep -q "^ALLOW_INSECURE_DATASOURCES=yes$" /etc/grafana-platform/platform.env && out_has "uses plain HTTP: its password crosses the network unencrypted"'
 check "a wrong Zabbix password is caught BEFORE installing and asked again" 'out_has "login as $ZBX_USER failed" && out_has "testing login ... OK \(Zabbix 7.0.30"'
 check "Grafana HTTP chosen explicitly; no configuration file edited by hand" 'grep -q "^GRAFANA_PROTOCOL=http$" /etc/grafana-platform/platform.env && grep -q "^GRAFANA_ALLOW_INSECURE_HTTP=yes$" /etc/grafana-platform/platform.env'
-check "item map built automatically; the 7 production host names asked once; NOC dashboards deployed" 'out_has "These LAB router names are not in your Zabbix" && out_has "Zabbix: connected" && out_has "NOC: 2 of 2 dashboards in Grafana, complete" && out_has "NetFlow: 5 of 5 dashboards in Grafana; 5 with setup incomplete: ClickHouse" && ! has_notice mgf2 noc-device-health'
+check "Device Type step: host groups read from Zabbix, WAN Routers = Router, the types without a group asked; NOC complete" 'out_has "Router   : WAN Routers \(7 hosts\)" && out_has "Switch   : \(no host group\)" && out_has "Host groups for Firewall" && out_lacks "LAB router names" && out_has "Zabbix: connected" && out_has "NOC: 2 of 2 dashboards in Grafana, complete"'
 check "ClickHouse skipped without blocking anything; NetFlow dashboards present with a notice" 'out_has "ClickHouse: not connected -> add it with" && [ "$(count /api/search)" = 7 ] && has_notice mgf2 netflow-overview && ! has_notice mgf2 noc-device-health'
 check "secrets: mode 600, never in the output or logs" '[ "$(stat -c %a /etc/grafana-platform/secrets/zabbix-password)" = 600 ] && ! grep -rqF -e "$(cat "$W/zbx.pw")" -e "$(cat "$W/admin.pw")" -e wrong-password "$W/out" "$W/sys/var/log" 2>/dev/null'
 check "the admin password typed during setup is the one Grafana accepts" '[ "$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/folders)" = 200 ]'
-n_q=$(grep -c "(answered)\|(hidden)" "$W/out.screen"); check "number of questions on a first install: $n_q (incl. 1 retry and 7 host names)" '[ "$n_q" -le 22 ]'
+n_q=$(grep -c "(answered)\|(hidden)" "$W/out.screen"); check "number of questions on a first install: $n_q (incl. 1 retry and the 3 Device Type lines)" '[ "$n_q" -le 16 ]'
 n_lines=$(wc -l < "$W/out.screen"); cp "$W/out.screen" "$W/setup-screen.txt"
 check "the operator sees a short screen: $n_lines lines for the whole first installation" '[ "$n_lines" -le 70 ]'
 
@@ -395,7 +393,7 @@ dgp() { (cd "$CLONE" && env "${doc_env[@]}" "$@") > "$W/out" 2>&1; }
 dgp grafana-platform uninstall --yes; rc=$?
 check "uninstall succeeds (rc=$rc)" '[ $rc = 0 ] && out_has "UNINSTALL: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
 check "package, service, firewall rules, release and command link are gone" '! grep -q "^grafana " "$W/sys/state/rpmdb" && [ ! -e /usr/local/sbin/grafana-platform ] && [ ! -d "$W/sys/opt/grafana-platform" ] && [ ! -s "$W/sys/state/fw-rules" ] && ! [ -f "$W/sys/state/grafana.pid" -a -e "/proc/$(cat "$W/sys/state/grafana.pid" 2>/dev/null)" ]'
-check "configuration, secrets and item map are kept" '[ -f /etc/grafana-platform/platform.env ] && [ -f /etc/grafana-platform/secrets/zabbix-password ] && [ -f /etc/grafana-platform/zabbix-item-map.json ]'
+check "configuration and secrets are kept" '[ -f /etc/grafana-platform/platform.env ] && [ -f /etc/grafana-platform/secrets/zabbix-password ]'
 dgp bin/grafana-platform install; rc=$?
 check "reinstall from the unpacked release with the kept configuration (rc=$rc), no prompts, no --env-file" '[ $rc = 0 ] && out_has "INSTALL: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
 check "reinstalled state is complete again: 7 dashboards" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ]'

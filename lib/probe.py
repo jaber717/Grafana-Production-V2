@@ -4,6 +4,7 @@
   probe.py zabbix URL USER        password from the environment variable PROBE_PASSWORD (never argv)
       -> "OK <api-version> <visible hosts>"  or  "ERR <reason>"         calls: apiinfo.version, user.login, host.get(count), user.logout
   probe.py clickhouse URL         GET URL/ping -> "OK" or "ERR <reason>"
+  probe.py hostgroups URL USER    Zabbix host groups that contain hosts -> "OK" then one "<name><TAB><host count>" per line, or "ERR <reason>"
 
 Env: PROBE_CA_FILE (extra CA, PEM), PROBE_INSECURE=1 (skip certificate verification; only when the operator allowed it).
 Proxies from the environment are NOT used: Zabbix and ClickHouse are internal services.
@@ -64,6 +65,29 @@ def zabbix(url, user):
     return f"OK {ver} {n}"
 
 
+def hostgroups(url, user):
+    op = opener()
+    try:
+        ver = rpc(op, url, "apiinfo.version", {})
+        maj, mi = (int(x) for x in ver.split(".")[:2])
+        header = maj > 6 or (maj == 6 and mi >= 4)
+        params = {"username": user, "password": os.environ.get("PROBE_PASSWORD", "")} if (maj > 5 or (maj == 5 and mi >= 4)) else {"user": user, "password": os.environ.get("PROBE_PASSWORD", "")}
+        sid = rpc(op, url, "user.login", params)
+    except Exception as e:  # noqa: BLE001
+        return f"ERR {e}"
+    try:
+        flag = "with_hosts" if (maj > 6 or (maj == 6 and mi >= 2)) else "real_hosts"
+        groups = rpc(op, url, "hostgroup.get", {"output": ["name"], flag: True, "selectHosts": "count", "sortfield": "name"}, sid, header)
+    except Exception as e:  # noqa: BLE001
+        return f"ERR {e}"
+    finally:
+        try:
+            rpc(op, url, "user.logout", [], sid, header)
+        except Exception:  # noqa: BLE001
+            pass
+    return "OK\n" + "\n".join(f"{g['name']}\t{g.get('hosts', '?')}" for g in groups)
+
+
 def clickhouse(url):
     try:
         with opener().open(url.rstrip("/") + "/ping", timeout=10) as r:
@@ -75,6 +99,8 @@ def clickhouse(url):
 if __name__ == "__main__":
     if len(sys.argv) == 4 and sys.argv[1] == "zabbix":
         print(zabbix(sys.argv[2], sys.argv[3]))
+    elif len(sys.argv) == 4 and sys.argv[1] == "hostgroups":
+        print(hostgroups(sys.argv[2], sys.argv[3]))
     elif len(sys.argv) == 3 and sys.argv[1] == "clickhouse":
         print(clickhouse(sys.argv[2]))
     else:

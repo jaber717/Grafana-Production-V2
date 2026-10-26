@@ -28,6 +28,9 @@ release before anything is installed. You do **not** build a bundle.
 curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Grafana-Production-V2/tar.gz/refs/heads/main | tar xz -C /root && sudo GP_PROXY=http://172.20.129.10:8080 /root/Grafana-Production-V2-main/install.sh
 ```
 
+**NOC dashboards**: choose Device Type, Device and Interfaces at the top of "NOC — Device Health"; nothing is configured per device
+([docs/NOC-DASHBOARDS.md](docs/NOC-DASHBOARDS.md)).
+
 **Dashboards missing, empty folders, or NOC dashboards saying "Zabbix not connected"?** Re-import all 7 into the running Grafana (no
 reinstall, no restart). If Zabbix is not connected it asks for it first and offers a Zabbix data source that already exists in Grafana
 (used as is, never modified); asks the Zabbix host names of the routers if the item map is incomplete; shows what Grafana holds afterwards:
@@ -54,8 +57,8 @@ Already have `grafana-platform-1.0.1-rhel9-offline.tar.gz`? Put it next to the c
 
 Passwords are typed twice, never shown, stored in `/etc/grafana-platform/secrets/` (mode 600) — never on a command line, in Git or in a log.
 The Zabbix login is **tested before installing**; a wrong password or URL is asked again, or Zabbix can be skipped and added later.
-After Grafana is up the Zabbix item map for the NOC dashboards is built automatically. If your router host names differ from the LAB names,
-it asks once for each name; Enter skips: the NOC dashboards are still imported, with a notice panel and empty panels for the unmapped items, until you run `sudo ./install.sh --dashboards`.
+After Grafana is up the installer lists your Zabbix host groups and shows which are routers, switches and firewalls (Device Type of the
+NOC dashboards); confirm with Enter or name the groups. Devices and interfaces are then chosen in Grafana only.
 
 ## Later
 

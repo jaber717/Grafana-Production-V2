@@ -40,8 +40,8 @@ createServer((req, res) => {
       const f = q.params.filter || {};
       return ok(hosts.filter((h) => (f.host && f.host.includes(h.host)) || (f.name && f.name.includes(h.name))));
     }
-    // read-only call made by the real Grafana Zabbix plugin's health check
-    if (q.method === 'hostgroup.get') return ok([{ groupid: '1', name: 'Routers' }]);
+    // read-only: the Grafana Zabbix plugin's health check and the installer's Device Type step (all hosts are WAN routers)
+    if (q.method === 'hostgroup.get') return ok([{ groupid: '1', name: 'WAN Routers', ...(q.params.selectHosts === 'count' ? { hosts: String(hosts.length) } : {}) }]);
     if (q.method === 'item.get') {
       const ids = q.params.itemids && [].concat(q.params.itemids).map(String); const hids = q.params.hostids && [].concat(q.params.hostids).map(String);
       return ok(items.filter((i) => (!ids || ids.includes(i.itemid)) && (!hids || hids.includes(i.hostid)) && (!q.params.filter?.key_ || q.params.filter.key_.includes(i.key_)))

@@ -1,0 +1,17 @@
+# New device in Zabbix -> selectable in Grafana with no action. Real Grafana 13.2.3 + real Zabbix plugin 6.8.0 on AlmaLinux 9.8;
+# Zabbix = tests/noc/zabbix7-api.mjs; managed datasource cache TTL 5m; browser checks by tests/noc/ui-acceptance.py --only-devices
+
+19:51:23 RYD-RTR-03 removed from Zabbix; waiting for the 5 min cache to expire
+== 19:57:03 after TTL: RYD-RTR-03 must be gone (expect2 = without it)
+  [PASS] Device Type Router: devices offered = ['RYD-EDGE-01', 'RYD-RTR-01', 'RYD-RTR-02']
+UI ACCEPTANCE: 8 PASS, 0 FAIL
+19:57:36 RYD-RTR-03 added in Zabbix (nothing done in Grafana)
+== 19:57:36 immediately: still cached, RYD-RTR-03 NOT yet offered (expect2)
+  [PASS] Device Type Router: devices offered = ['RYD-EDGE-01', 'RYD-RTR-01', 'RYD-RTR-02']
+UI ACCEPTANCE: 8 PASS, 0 FAIL
+== 20:03:48 after TTL, no action: RYD-RTR-03 offered (expect3)
+  [PASS] Device Type Router: devices offered = ['RYD-EDGE-01', 'RYD-RTR-01', 'RYD-RTR-02', 'RYD-RTR-03']
+UI ACCEPTANCE: 8 PASS, 0 FAIL
+test Zabbix keeps running with RYD-RTR-03
+
+[killed]

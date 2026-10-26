@@ -1,3480 +1,1544 @@
 {
-  "annotations": {
-    "list": []
-  },
-  "description": "NOC Device Health. Row 1: 7 tall device cards + Last update tile, each 3 cols wide and 8 rows tall for readable values. Each device card is a vertical stat panel with 4 reduced sub-metrics (PING / SNMP / MEM / CPU), colored by state. Row 2: Memory and CPU timeseries side-by-side, each 11 rows tall, legends renamed to device names via byFrameRefID displayName overrides. No expression-chained tiles — those were replaced by compact per-device cards which already answer 'who is unhealthy' at a glance. All itemids live-validated via /api/ds/query (28/28).",
-  "editable": false,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "id": null,
-  "liveNow": false,
-  "panels": [
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 0,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 10,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51228",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51519",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51506",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51250",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51246",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "STC",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 3,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 11,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51278",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51512",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51770",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51300",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51296",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "MOBILY",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 6,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 12,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51378",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51741",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51637",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51400",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51396",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "SAIX-A",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 9,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 13,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51428",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51639",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51555",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51450",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51446",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "SAIX-B",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 12,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 14,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51128",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51630",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51636",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51141",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51140",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "SITE-A",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 15,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 15,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51178",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51548",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51554",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51191",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51190",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "SITE-B",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "description": "SNMP badge is derived from FRESH data, not the Zabbix availability flag (which stays \"unknown\" while SNMP works). OK: sysUpTime (SNMP, polled every 30 s) has a sample in the last 2 minutes. DOWN: no fresh SNMP sample while ICMP is still collected (or availability = 2). UNK: Zabbix has no data at all for this router. \"—\" on PING/MEM/CPU = no sample in the last 2 min. MEM is a calculated Zabbix item, so it is never used as proof of SNMP freshness.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "noValue": "UNK",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "gray",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "PING"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "red",
-                        "text": "DOWN"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "UP"
-                      },
-                      "-1": {
-                        "color": "gray",
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SNMP"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "0": {
-                        "color": "orange",
-                        "text": "UNK"
-                      },
-                      "1": {
-                        "color": "green",
-                        "text": "OK"
-                      },
-                      "2": {
-                        "color": "red",
-                        "text": "DOWN"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MEM"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "CPU"
-              },
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "noValue",
-                "value": "—"
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "-1": {
-                        "color": "gray",
-                        "index": 0,
-                        "text": "—"
-                      }
-                    },
-                    "type": "value"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 18,
-        "y": 0
-      },
-      "hideTimeOverride": true,
-      "id": 16,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51328",
-          "queryType": "3",
-          "refId": "P0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51776",
-          "queryType": "3",
-          "refId": "C0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51735",
-          "queryType": "3",
-          "refId": "D0",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51350",
-          "queryType": "3",
-          "refId": "AV",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "hide": true,
-          "itemids": "51346",
-          "queryType": "3",
-          "refId": "UP",
-          "resultFormat": "time_series"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "P0",
-          "hide": true,
-          "refId": "RP",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "C0",
-          "hide": true,
-          "refId": "RC",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "D0",
-          "hide": true,
-          "refId": "RD",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "AV",
-          "hide": true,
-          "refId": "RAV",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "downsampler": "last",
-          "expression": "UP",
-          "hide": true,
-          "refId": "RU",
-          "type": "resample",
-          "upsampler": "fillna",
-          "window": "2m"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RP",
-          "reducer": "last",
-          "refId": "A",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RC",
-          "reducer": "last",
-          "refId": "C",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RD",
-          "reducer": "last",
-          "refId": "D",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RAV",
-          "hide": true,
-          "reducer": "last",
-          "refId": "LA",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "RU",
-          "hide": true,
-          "reducer": "last",
-          "refId": "FU",
-          "settings": {
-            "mode": "replaceNN",
-            "replaceWithValue": -1
-          },
-          "type": "reduce"
-        },
-        {
-          "datasource": {
-            "type": "__expr__",
-            "uid": "__expr__"
-          },
-          "expression": "($FU >= 0) + (1 - ($FU >= 0)) * ((($A >= 0) + ($LA == 2)) > 0) * 2",
-          "refId": "B",
-          "type": "math"
-        }
-      ],
-      "timeFrom": "12h",
-      "title": "INT-CORE",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "text",
-            "mode": "fixed"
-          },
-          "unit": "dateTimeFromNow"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 21,
-        "y": 0
-      },
-      "id": 20,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/[Tt]ime/",
-          "values": false
-        },
-        "textMode": "value"
-      },
-      "targets": [
-        {
-          "itemids": "51228",
-          "queryType": "3",
-          "refId": "A",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Last update",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "STC"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MOBILY"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SAIX-A"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SAIX-B"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "E"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SITE-A"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "F"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SITE-B"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "G"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "INT-CORE"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 11,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 40,
-      "options": {
-        "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "itemids": "51519",
-          "queryType": "3",
-          "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51512",
-          "queryType": "3",
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51741",
-          "queryType": "3",
-          "refId": "C",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51639",
-          "queryType": "3",
-          "refId": "D",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51630",
-          "queryType": "3",
-          "refId": "E",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51548",
-          "queryType": "3",
-          "refId": "F",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51776",
-          "queryType": "3",
-          "refId": "G",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "Memory utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "alexanderzobnin-zabbix-datasource",
-        "uid": "zabbix-lab"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "STC"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "MOBILY"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SAIX-A"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SAIX-B"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "E"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SITE-A"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "F"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "SITE-B"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "G"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "INT-CORE"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 11,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "id": 41,
-      "options": {
-        "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "right"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "itemids": "51506",
-          "queryType": "3",
-          "refId": "A",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51770",
-          "queryType": "3",
-          "refId": "B",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51637",
-          "queryType": "3",
-          "refId": "C",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51555",
-          "queryType": "3",
-          "refId": "D",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51636",
-          "queryType": "3",
-          "refId": "E",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51554",
-          "queryType": "3",
-          "refId": "F",
-          "resultFormat": "time_series"
-        },
-        {
-          "itemids": "51735",
-          "queryType": "3",
-          "refId": "G",
-          "resultFormat": "time_series"
-        }
-      ],
-      "title": "CPU utilization",
-      "type": "timeseries"
-    }
-  ],
-  "refresh": "30s",
-  "schemaVersion": 39,
-  "style": "dark",
+  "uid": "noc-device-health",
+  "title": "NOC — Device Health",
+  "description": "Any router, switch or firewall monitored by Zabbix: choose Device Type, Device and Interfaces at the top. Hosts, interfaces and metrics are read from Zabbix (host groups, interface discovery tags, item tags and names) — nothing is hardcoded.",
   "tags": [
+    "noc",
     "netops",
     "device-health"
   ],
-  "templating": {
-    "list": []
-  },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "style": "dark",
+  "timezone": "browser",
+  "weekStart": "",
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
       "30s",
       "1m",
-      "5m"
-    ],
-    "time_options": [
-      "1h",
-      "6h",
-      "24h",
-      "7d"
+      "5m",
+      "15m"
     ]
   },
-  "timezone": "browser",
-  "title": "NOC — Device Health",
-  "uid": "noc-device-health",
-  "weekStart": ""
+  "annotations": {
+    "list": []
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "devtype",
+        "label": "Device Type",
+        "type": "custom",
+        "hide": 0,
+        "query": "All : @@NOCQ_ALL@@,Router : @@NOCQ_ROUTER@@,Switch : @@NOCQ_SWITCH@@,Firewall : @@NOCQ_FIREWALL@@",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "@@NOC_ALL@@"
+        },
+        "options": [],
+        "multi": false,
+        "includeAll": false,
+        "skipUrlSync": false,
+        "description": "Zabbix host groups per device type (regex over group names); set once by 'install.sh --dashboards'"
+      },
+      {
+        "name": "device",
+        "label": "Device",
+        "type": "query",
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "zabbix-lab"
+        },
+        "hide": 0,
+        "query": {
+          "queryType": "host",
+          "group": "${devtype:raw}",
+          "host": "/.*/",
+          "application": "",
+          "itemTag": "",
+          "item": ""
+        },
+        "definition": "Zabbix hosts in the host groups of the selected Device Type",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {},
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "description": "Every Zabbix host in the groups of the chosen type; new hosts appear on the next dashboard load"
+      },
+      {
+        "name": "interface",
+        "label": "Interface",
+        "type": "query",
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "zabbix-lab"
+        },
+        "hide": 0,
+        "query": {
+          "queryType": "itemTag",
+          "group": "${devtype:raw}",
+          "host": "$device",
+          "application": "",
+          "itemTag": "/^[Ii]nterface: /",
+          "item": ""
+        },
+        "definition": "Zabbix item tags 'interface: <name>' of the selected device (interface discovery)",
+        "refresh": 1,
+        "sort": 7,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "/^(?<value>[Ii]nterface: (?<text>.+))$/",
+        "skipUrlSync": false,
+        "description": "Interfaces Zabbix discovered on the device (item tag 'interface')"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "NOC dashboards",
+      "type": "dashboards",
+      "tags": [
+        "noc"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Availability — $device",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Reachability (ICMP)",
+      "description": "Zabbix item 'ICMP ping' (template ICMP Ping). 'no item' = the device has no ICMP ping item.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": -1000000000000.0
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^ICMP ping$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "SNMP availability",
+      "description": "Zabbix internal item zabbix[host,snmp,available] (official SNMP templates).",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": -1000000000000.0
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "NOT AVAILABLE",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "AVAILABLE",
+                  "color": "green",
+                  "index": 1
+                },
+                "2": {
+                  "text": "UNKNOWN",
+                  "color": "orange",
+                  "index": 2
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^SNMP agent availability$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "ICMP response time",
+      "description": "",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": -1000000000000.0
+              }
+            ]
+          },
+          "unit": "s",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^ICMP response time$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "ICMP loss",
+      "description": "",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^ICMP loss$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Uptime",
+      "description": "Items tagged component: system named 'Uptime ...' (network and/or hardware uptime, as the template provides).",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": -1000000000000.0
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: system"
+          },
+          "item": {
+            "filter": "/^(System )?[Uu]ptime/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "CPU and memory — $device",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "CPU now",
+      "description": "Items tagged component: cpu whose name says utilization/usage/load (one value per CPU / engine).",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: cpu"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage|load)/i"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "CPU utilization",
+      "description": "",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: cpu"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage|load)/i"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Memory now",
+      "description": "Items tagged component: memory whose name says utilization/usage.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "no item",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "gray",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "orientation": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: memory"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage)/i"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Memory utilization",
+      "description": "",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: memory"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage)/i"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Interfaces — $device",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Interface status",
+      "description": "Item 'Operational status' of every selected interface (IF-MIB ifOperStatus), with Zabbix's value mapping.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 8,
+        "x": 0,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "color-background"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "up",
+                  "color": "green",
+                  "index": 0
+                },
+                "2": {
+                  "text": "down",
+                  "color": "red",
+                  "index": 1
+                },
+                "3": {
+                  "text": "testing",
+                  "color": "orange",
+                  "index": 2
+                },
+                "4": {
+                  "text": "unknown",
+                  "color": "orange",
+                  "index": 3
+                },
+                "5": {
+                  "text": "dormant",
+                  "color": "blue",
+                  "index": 4
+                },
+                "6": {
+                  "text": "notPresent",
+                  "color": "gray",
+                  "index": 5
+                },
+                "7": {
+                  "text": "lowerLayerDown",
+                  "color": "red",
+                  "index": 6
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "/^up/i",
+                "result": {
+                  "color": "green",
+                  "index": 7
+                }
+              }
+            },
+            {
+              "type": "regex",
+              "options": {
+                "pattern": "/^(down|lowerLayerDown)/i",
+                "result": {
+                  "color": "red",
+                  "index": 8
+                }
+              }
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Field"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "displayName",
+                "value": "Device / item"
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 230
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": []
+      },
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "lastNotNull"
+            ],
+            "mode": "seriesToRows",
+            "includeTimeField": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "Last *": "Status"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "$interface"
+          },
+          "item": {
+            "filter": "/Operational status$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Interface traffic (bits/s)",
+      "description": "Items 'Bits received' (up) and 'Bits sent' (down, negative) of the selected interfaces.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 8,
+        "y": 23
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "bps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*Bits sent.*"
+            },
+            "properties": [
+              {
+                "id": "custom.transform",
+                "value": "negative-Y"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "$interface"
+          },
+          "item": {
+            "filter": "/Bits (received|sent)$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "Interface errors and discards",
+      "description": "",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "pps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "$interface"
+          },
+          "item": {
+            "filter": "/packets (with errors|discarded)$/"
+          },
+          "functions": [],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ]
+    }
+  ]
 }

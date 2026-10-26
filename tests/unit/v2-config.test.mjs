@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseEnv, renderDatasources, flag, datasourceRefs, itemIds } from '../../scripts/lib/envcfg.mjs';
+import { parseEnv, renderDatasources, flag, datasourceRefs, itemIds, nocTypeRegexes } from '../../scripts/lib/envcfg.mjs';
 import { effectiveDashboards, effectivePlaylists } from '../../scripts/lib/content.mjs';
 import { repoDashboards } from '../../scripts/lib/grafana.mjs';
 
@@ -127,26 +127,40 @@ test('CLICKHOUSE_ENABLED=yes (default): both datasources, all dashboards, full p
   assert.equal(pl.state, 'ok'); assert.equal(pl.playlist.items.length, 5);
 });
 
-test('NOC dashboards: a missing OR partial item map deploys them with a notice and EMPTY unmapped ids (refused only with ALLOW_NOC_WITHOUT_ITEM_MAP=no)', () => {
-  const partial = { 51128: '777' };
-  for (const itemMap of [null, partial]) {
-    const refused = effectiveDashboards({ env: ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'no' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
-    assert.ok(refused.every((d) => d.state === 'refused'), JSON.stringify(refused.map((d) => d.state)));
-    for (const env of [ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'YES' }), ENV({})]) {
-      const dep = effectiveDashboards({ env, envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
-      assert.equal(dep.length, 2);
-      for (const d of dep) {
-        assert.equal(d.state, 'pending');
-        assert.equal(d.dashboard.panels[0].title, 'Setup still incomplete');
-        assert.ok(!Object.keys(LABIDS).some((lab) => itemIds(d.dashboard).includes(lab)), 'no LAB item id may reach another Zabbix');
-        assert.deepEqual(datasourceRefs(d.dashboard), ['zabbix-lab'], 'uses the existing Zabbix datasource');
-      }
+test('NOC dashboards are dynamic: no device, host, item, interface or LAB id; Device/Interface come from Zabbix; any item map is irrelevant', () => {
+  const LABHOSTS = ['SITE-A', 'SITE-B', 'STC', 'MOBILY', 'INT-CORE', 'SAIX-A', 'SAIX-B'];
+  for (const d of repoDashboards().filter((x) => x.folderDir === 'noc')) {
+    const txt = JSON.stringify(d.dashboard);
+    assert.equal(itemIds(d.dashboard).length, 0, `${d.file}: no item id`);
+    assert.ok(!/"itemids"|"hostids"|"queryType":\s*"3"/.test(txt), `${d.file}: no id-based query`);
+    for (const h of LABHOSTS) assert.ok(!txt.includes(h), `${d.file}: LAB name ${h}`);
+    assert.ok(!Object.keys(LABIDS).some((id) => txt.includes(`"${id}"`)), `${d.file}: LAB item id`);
+    const vars = Object.fromEntries(d.dashboard.templating.list.map((v) => [v.name, v]));
+    assert.equal(vars.devtype.type, 'custom'); assert.match(vars.devtype.query, /^All : @@NOCQ_ALL@@,Router : @@NOCQ_ROUTER@@,Switch : @@NOCQ_SWITCH@@,Firewall : @@NOCQ_FIREWALL@@$/);
+    if (vars.device) {
+      assert.deepEqual([vars.device.query.queryType, vars.device.query.group, vars.device.refresh], ['host', '${devtype:raw}', 1], 'Device = Zabbix hosts of the type, refreshed on load');
+      assert.deepEqual([vars.interface.query.queryType, vars.interface.query.host], ['itemTag', '$device'], 'Interface = item tags of the device');
+      assert.equal(vars.interface.multi, true);
     }
   }
-  const dh = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap: partial }).find((d) => d.dashboard.uid === 'noc-device-health');
-  assert.ok(itemIds(dh.dashboard).includes('777'), 'mapped ids are used');
-  const ok = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap: fullMap }).filter((d) => NOC.includes(d.dashboard.uid));
-  for (const d of ok) { assert.equal(d.state, 'ok'); assert.notEqual(d.dashboard.panels[0].title, 'Setup still incomplete'); assert.ok(!JSON.stringify(d.dashboard).match(/"itemids":"(5\d{4})/), 'no LAB id left in a deployed NOC dashboard'); }
+  for (const itemMap of [null, { 51128: '1' }]) {
+    const noc = effectiveDashboards({ env: ENV({ CLICKHOUSE_ENABLED: 'no' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
+    assert.ok(noc.every((d) => d.state === 'ok'), 'deployed complete, with or without a LAB item map');
+  }
+});
+
+test('Device Type renders from NOC_GROUPS_* (defaults when empty); commas survive the custom-variable option list', () => {
+  const dh = (env) => effectiveDashboards({ env, envName: 'production', itemMap: null }).find((d) => d.dashboard.uid === 'noc-device-health').dashboard;
+  const def = dh(ENV({})).templating.list.find((v) => v.name === 'devtype');
+  assert.equal(def.query, 'All : /(?:router|rtr)|(?:switch)|(?:firewall)/i,Router : /router|rtr/i,Switch : /switch/i,Firewall : /firewall/i');
+  assert.equal(def.current.value, '/(?:router|rtr)|(?:switch)|(?:firewall)/i');
+  const v = dh(ENV({ NOC_GROUPS_ROUTER: '/^(?:Network/Routers|Network/WAN Edge)$/i', NOC_GROUPS_SWITCH: '/sw{1,3}itch/i' })).templating.list.find((x) => x.name === 'devtype');
+  assert.match(v.query, /Router : \/\^\(\?:Network\/Routers\|Network\/WAN Edge\)\$\/i,/);
+  assert.ok(v.query.includes('Switch : /sw{1\\,3}itch/i'), 'comma escaped for Grafana in the option list: ' + v.query);
+  assert.ok(!JSON.stringify(dh(ENV({}))).includes('@@NOC'), 'no placeholder left');
+  for (const re of Object.values(nocTypeRegexes(ENV({ NOC_GROUPS_ROUTER: '/^(?:Core \\(DC-1\\) \\[A\\]|a : b)$/i' })))) {
+    const m = re.match(/^\/(.*)\/i$/); assert.ok(m, re); new RegExp(m[1], 'i');
+  }
 });
 
 test('datasourceRefs ignores expressions and finds the real datasources of each folder', () => {

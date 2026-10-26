@@ -63,6 +63,29 @@ export function substitute(node, env) {
 export function deferredDatasources(env) {
   return [...(flag(env, 'ZABBIX_ENABLED', true) ? [] : ['zabbix-lab']), ...(flag(env, 'CLICKHOUSE_ENABLED', true) ? [] : ['netflow-clickhouse'])];
 }
+// ---- NOC "Device Type" = regex over Zabbix host group names ------------------------------------------------------------
+export const NOC_DEFAULT_GROUPS = { ROUTER: '/router|rtr/i', SWITCH: '/switch/i', FIREWALL: '/firewall/i' };
+const reEsc = (t) => t.replace(/[.^$*+?()[\]{}|\\]/g, '\\$&');   // metacharacters only: valid in JavaScript AND Go RE2
+/** "/body/flags" -> body; a plain value = one literal group name. " : " (Grafana's text/value separator) becomes " \x3A ". */
+function regexBody(v) {
+  const m = String(v).match(/^\/(.*)\/([gimsuy]*)$/s);
+  return (m ? m[1] : reEsc(String(v))).replace(/ : /g, ' \\x3A ');
+}
+/** { ROUTER, SWITCH, FIREWALL, ALL } as plugin regex filters "/.../i" for the NOC Device Type variable. */
+export function nocTypeRegexes(env) {
+  const out = {};
+  for (const t of ['ROUTER', 'SWITCH', 'FIREWALL']) out[t] = `/${regexBody(String(env[`NOC_GROUPS_${t}`] || '').trim() || NOC_DEFAULT_GROUPS[t])}/i`;
+  out.ALL = `/${['ROUTER', 'SWITCH', 'FIREWALL'].map((t) => `(?:${out[t].slice(1, -2)})`).join('|')}/i`;
+  return out;
+}
+/** Copy of `dash` with "@@NOC_<TYPE>@@" replaced by the group regex, and "@@NOCQ_<TYPE>@@" (inside the custom variable's option
+ *  list, where "," separates options) by the same regex with "," written as "\," (Grafana turns it back into ","). */
+export function renderNocPlaceholders(dash, env) {
+  const r = nocTypeRegexes(env);
+  return JSON.parse(JSON.stringify(dash), (_k, v) => (typeof v === 'string' && v.includes('@@NOC')
+    ? v.replace(/@@NOC(Q?)_(ROUTER|SWITCH|FIREWALL|ALL)@@/g, (_m, q, t) => (q ? r[t].replace(/,/g, '\\,') : r[t])) : v));
+}
+
 /** uid of an existing Zabbix datasource the dashboards use instead of the managed 'zabbix-lab' ('' = none). */
 export const adoptedZabbixUid = (env) => (flag(env, 'ZABBIX_ENABLED', true) && String(env.ZABBIX_DATASOURCE_UID || '').trim() !== 'zabbix-lab' ? String(env.ZABBIX_DATASOURCE_UID || '').trim() : '');
 /** Copy of a dashboard whose references to datasource uid `from` point at `to`. */
@@ -82,7 +105,7 @@ export const deferReason = (uid) => `${ENABLER[uid] || 'configuration'}=no`;
 export function renderDatasources(env, root = ROOT) {
   const off = new Set(deferredDatasources(env));
   if (adoptedZabbixUid(env)) off.add('zabbix-lab');   // an existing Zabbix datasource is used instead: nothing to create or change
-  return JSON.parse(readFileSync(join(root, 'config', 'datasources.tmpl.json'), 'utf8')).filter((d) => !off.has(d.uid)).map((d) => substitute(d, env));
+  return JSON.parse(readFileSync(join(root, 'config', 'datasources.tmpl.json'), 'utf8')).filter((d) => !off.has(d.uid)).map((d) => substitute(d, { ZABBIX_CACHE_TTL: '5m', ...env, ...(env.ZABBIX_CACHE_TTL ? {} : { ZABBIX_CACHE_TTL: '5m' }) }));
 }
 
 /** Every datasource uid a dashboard references (built-in pseudo datasources excluded). */

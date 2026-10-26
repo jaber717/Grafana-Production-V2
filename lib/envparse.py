@@ -48,6 +48,13 @@ SCHEMA = {
     # uid of a Zabbix datasource that already exists in Grafana: it is used by the NOC dashboards and never modified (empty = the
     # installer manages its own datasource 'zabbix-lab')
     "ZABBIX_DATASOURCE_UID": (STR, None, None),
+    # how long the Zabbix plugin caches host groups, hosts and items: a device added to Zabbix appears in the NOC pickers within this time
+    "ZABBIX_CACHE_TTL": (STR, "5m", None),
+    # NOC dashboards, "Device Type": Zabbix host groups of each type, as /regex/i over the group names (empty = default pattern);
+    # set by 'install.sh --dashboards' from the groups that exist in Zabbix
+    "NOC_GROUPS_ROUTER": (STR, None, None),
+    "NOC_GROUPS_SWITCH": (STR, None, None),
+    "NOC_GROUPS_FIREWALL": (STR, None, None),
     "ZABBIX_URL": (STR, None, None),
     "ZABBIX_USER": (STR, None, None),
     "ZABBIX_CA_FILE": (STR, None, None),

@@ -1,3 +1,6 @@
+> **Obsolete since 2.3.0.** No dashboard addresses Zabbix items by id any more ([NOC-DASHBOARDS.md](NOC-DASHBOARDS.md)); setup and preflight no
+> longer use an item map. The `item-map` command is kept only as a legacy tool.
+
 # Zabbix item map (NOC dashboards)
 
 The two NOC dashboards (`noc-device-health`, `noc-wan-overview`) query the Zabbix datasource by **numeric item id** (query type 3): 47 items.
