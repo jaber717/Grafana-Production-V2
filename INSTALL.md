@@ -28,6 +28,13 @@ release before anything is installed. You do **not** build a bundle.
 curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Grafana-Production-V2/tar.gz/refs/heads/main | tar xz -C /root && sudo GP_PROXY=http://172.20.129.10:8080 /root/Grafana-Production-V2-main/install.sh
 ```
 
+**Dashboards missing or empty folders?** Re-import all 7 into the running Grafana (no reinstall, no restart; asks the Zabbix host names
+of the routers if the item map is incomplete; shows what Grafana holds afterwards):
+
+```bash
+curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Grafana-Production-V2/tar.gz/refs/heads/main | tar xz -C /root && sudo /root/Grafana-Production-V2-main/install.sh --dashboards
+```
+
 **Behind an HTTP proxy** (e.g. a Fortinet explicit proxy): pass it once, e.g. `sudo GP_PROXY=http://172.20.129.10:8080 ./install.sh`.
 It is used only for that one GitHub download (also taken from `https_proxy` or `proxy=` in `/etc/dnf/dnf.conf`); Grafana, Zabbix and ClickHouse
 connections never go through it. If the proxy re-signs TLS, the download continues with a WARN — the file is still accepted only if its SHA-256 equals the pin.
@@ -47,7 +54,7 @@ Already have `grafana-platform-1.0.1-rhel9-offline.tar.gz`? Put it next to the c
 Passwords are typed twice, never shown, stored in `/etc/grafana-platform/secrets/` (mode 600) — never on a command line, in Git or in a log.
 The Zabbix login is **tested before installing**; a wrong password or URL is asked again, or Zabbix can be skipped and added later.
 After Grafana is up the Zabbix item map for the NOC dashboards is built automatically. If your router host names differ from the LAB names,
-it asks once for each name; Enter skips and the NOC dashboards simply wait.
+it asks once for each name; Enter skips: the NOC dashboards are still imported, with a notice panel and empty panels for the unmapped items, until you run `sudo ./install.sh --dashboards`.
 
 ## Later
 
@@ -65,6 +72,6 @@ it asks once for each name; Enter skips and the NOC dashboards simply wait.
 Genuine problems only, each printed with a one-line fix: not RHEL 9 / not x86_64 / not root; firewalld not running (it is what restricts the port);
 the Grafana package not obtainable (the fix names the one file to copy); a damaged or wrong offline archive; required tools missing from the
 RHEL repositories; less than 2 GiB free; port 3000 taken; an existing Grafana not installed by this tool; an invalid certificate (https only).
-Everything else is a WARN: plain HTTP (your choice), SELinux not enforcing, Zabbix/ClickHouse not connected, NOC dashboards waiting for the item map.
+Everything else is a WARN: plain HTTP (your choice), SELinux not enforcing, Zabbix/ClickHouse not connected, dashboards whose setup is incomplete (they are imported with a notice panel).
 
 Advanced/manual use of the individual commands: [docs/PRODUCTION-RHEL9.md](docs/PRODUCTION-RHEL9.md). Migration from `jaber717/Grafana`: [docs/MIGRATION-FROM-V1.md](docs/MIGRATION-FROM-V1.md).

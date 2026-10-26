@@ -4,6 +4,7 @@
 #   sudo ./install.sh                 first installation: a few questions, then everything (config, secrets, packages, Grafana, dashboards)
 #   sudo ./install.sh                 again: shows the current settings, Enter keeps them -> safe re-run (repairs, changes nothing that matches)
 #   sudo ./install.sh --zabbix        add or change only the Zabbix connection (and its NOC dashboards)
+#   sudo ./install.sh --dashboards    (re)import all dashboards into the running Grafana; no reinstall, no restart
 #   sudo ./install.sh --clickhouse    add or change only the ClickHouse/Akvorado connection (and its NetFlow dashboards)
 #   sudo ./install.sh --yes           non-interactive re-run with the saved settings (automation)
 #
@@ -189,7 +190,8 @@ cmd_setup() {
   require_root
   exec 3<&0; exec 0</dev/null     # answers come from fd 3; nothing else may consume them
   [ -t 3 ] && SETUP_TTY=1
-  local only="" x; for x in "${OPT_ARGS[@]+"${OPT_ARGS[@]}"}"; do case "$x" in --zabbix) only=zabbix ;; --clickhouse) only=clickhouse ;; --reconfigure) only=all ;; *) die "unknown option $x (use --zabbix, --clickhouse, --reconfigure, --yes)" ;; esac; done
+  local only="" x; for x in "${OPT_ARGS[@]+"${OPT_ARGS[@]}"}"; do case "$x" in --zabbix) only=zabbix ;; --clickhouse) only=clickhouse ;; --reconfigure) only=all ;; --dashboards) only=dashboards ;; *) die "unknown option $x (use --zabbix, --clickhouse, --dashboards, --reconfigure, --yes)" ;; esac; done
+  if [ "$only" = dashboards ]; then setup_dashboards_only; return; fi
   printf '\nGrafana platform %s — setup\n' "$(cat "$RELEASE_DIR/VERSION")" >&2
   install -d -m 0755 "$ETC"
   local fresh=1; [ -f "$ENV_INSTALLED" ] && fresh=0; SETUP_FRESH=$fresh
@@ -232,7 +234,7 @@ cmd_setup() {
   tail -n +1 -f --pid="$pid" "$out" 2>/dev/null | sed -u 's/\x1b\[[0-9;]*m//g' \
     | grep --line-buffered -E '^\[FAIL\]|-> fix:|^\[FATAL\]|downloading|offline (archive|bundle) (found|unpacked)|^(INSTALL|PREFLIGHT): ' | sed -u 's/^\[PASS\] //; s/^/  /' >&2
   wait "$pid" || rc=$?
-  grep -E '^\[WARN\]' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -vE 'deferred|not deployed|not configured|no backup exists yet|HTTP only' | awk '!s[$0]++' | sed 's/^/  /' >&2
+  grep -E '^\[WARN\]' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -vE 'deferred|not deployed|setup incomplete|imported with a notice panel|not configured|no backup exists yet|HTTP only' | awk '!s[$0]++' | sed 's/^/  /' >&2
   install -d -m 0750 "$LOGDIR"; mv -f "$out" "$LOGDIR/setup-last-install.txt"; chmod 0640 "$LOGDIR/setup-last-install.txt"
   if [ "$rc" != 0 ]; then
     printf '\nThe installation stopped before changing anything that would leave Grafana broken. Fix the FAIL line(s) above and run sudo ./install.sh again (your answers are saved).\n' >&2
@@ -251,20 +253,35 @@ cmd_setup() {
   setup_summary
 }
 
+# What Grafana really holds (GET /api/search, /api/dashboards/uid/...), not what was intended. Exit 1 if a managed dashboard is missing.
+dashboards_report() { run_content_tool dashboards-report --item-map "$ZABBIX_ITEM_MAP_FILE" "$@" 2>&1; }
+
+# sudo ./install.sh --dashboards : (re)import every managed dashboard into the running Grafana. Does not touch the Grafana package,
+# grafana.ini, the service, the firewall or the datasources' settings; updates this release's tool files, builds/extends the Zabbix item
+# map (asks the Zabbix host names it cannot find), applies the content idempotently (matched by uid: no duplicates) and reports from the API.
+setup_dashboards_only() {
+  [ -f "$ENV_INSTALLED" ] && [ -f "$RELEASE_JSON" ] || die "Grafana is not installed by this tool yet: run 'sudo ./install.sh' first"
+  load_env; log_to_file dashboards
+  head1 "Dashboards (Grafana itself is not reinstalled or restarted)"
+  curl_local -o /dev/null -f "$(base_url)/api/health" || die "Grafana does not answer at $(base_url) — start it first: systemctl start grafana-server"
+  deploy_release >&2; write_release_json
+  MAP_STATE=""; setup_item_map
+  head1 "Importing the dashboards (matched by uid: re-running never duplicates)"
+  ( run_content_tool apply --item-map "$ZABBIX_ITEM_MAP_FILE" ) 2>&1 | tee -a "$LOGDIR/setup-last-dashboards.txt" | grep -E '^(created|updated|unchanged|refused|note) |health:|^applied' | sed 's/^/    /' >&2 || true
+  head1 "What Grafana holds now (read back through its API)"
+  local rc=0; dashboards_report | sed 's/^/  /' >&2 || rc=$?
+  [ "$rc" = 0 ] || die "not every dashboard is in Grafana (see above); log: $LOGDIR/setup-last-dashboards.txt"
+}
+
 setup_summary() {
   local cli; cli="grafana-platform"
   printf '\n==================================================================\n' >&2
   printf ' Grafana is installed:  %s/\n' "$(base_url)" >&2
   if [ "${ADMIN_PW_SET:-0}" = 1 ]; then printf ' Login: admin / the password you entered\n' >&2
   else printf ' Login: admin — password stored in %s (sudo cat it once, then change it in Grafana)\n' "$SECRETS_DIR/admin-password" >&2; fi
-  if zabbix_enabled; then
-    case "${MAP_STATE:-}" in
-      complete) printf ' Zabbix: connected; NOC dashboards deployed\n' >&2 ;;
-      *) printf ' Zabbix: connected; NOC dashboards waiting for the item map -> sudo %s setup --zabbix\n' "$cli" >&2 ;;
-    esac
-  else printf ' Zabbix: not connected -> add it with: sudo %s setup --zabbix\n' "$cli" >&2; fi
-  if clickhouse_enabled; then printf ' ClickHouse: connected; NetFlow dashboards deployed\n' >&2
-  else printf ' ClickHouse: not connected -> add it with: sudo %s setup --clickhouse\n' "$cli" >&2; fi
+  if zabbix_enabled; then printf ' Zabbix: connected\n' >&2; else printf ' Zabbix: not connected -> add it with: sudo %s setup --zabbix\n' "$cli" >&2; fi
+  if clickhouse_enabled; then printf ' ClickHouse: connected\n' >&2; else printf ' ClickHouse: not connected -> add it with: sudo %s setup --clickhouse\n' "$cli" >&2; fi
+  dashboards_report --brief | sed 's/^/ /' >&2 || printf ' WARNING: not every dashboard is in Grafana (see above): sudo %s setup --dashboards\n' "$cli" >&2
   [ "$GRAFANA_PROTOCOL" = http ] && printf ' Note: plain HTTP (your explicit choice). Switch to https later: sudo %s setup --reconfigure\n' "$cli" >&2
   printf ' Health check any time: sudo %s verify\n' "$cli" >&2
   printf '==================================================================\n' >&2

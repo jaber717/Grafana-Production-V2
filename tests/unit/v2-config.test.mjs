@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseEnv, renderDatasources, flag, datasourceRefs } from '../../scripts/lib/envcfg.mjs';
+import { parseEnv, renderDatasources, flag, datasourceRefs, itemIds } from '../../scripts/lib/envcfg.mjs';
 import { effectiveDashboards, effectivePlaylists } from '../../scripts/lib/content.mjs';
 import { repoDashboards } from '../../scripts/lib/grafana.mjs';
 
@@ -103,12 +103,17 @@ const NOC = repoDashboards().filter((d) => d.folderDir === 'noc').map((d) => d.d
 const LABIDS = JSON.parse(rd('config/zabbix-item-descriptors.json')).items;
 const fullMap = Object.fromEntries(Object.keys(LABIDS).map((k, i) => [k, String(900000 + i)]));
 
-test('CLICKHOUSE_ENABLED=no: no ClickHouse datasource (its settings may be empty), NetFlow dashboards and playlist deferred', () => {
+test('CLICKHOUSE_ENABLED=no: no ClickHouse datasource (its settings may be empty); NetFlow dashboards deployed with a notice, playlist deferred', () => {
   const env = ENV({ CLICKHOUSE_ENABLED: 'no', CLICKHOUSE_HOST: '', CLICKHOUSE_PORT: '', CLICKHOUSE_USER: '' });
   assert.deepEqual(renderDatasources(env).map((d) => d.uid), ['zabbix-lab']);
   const ctx = { env, envName: 'production', itemMap: fullMap };
   const st = Object.fromEntries(effectiveDashboards(ctx).map((d) => [d.dashboard.uid, d.state]));
-  for (const u of NETFLOW) assert.equal(st[u], 'skipped', u);
+  for (const u of NETFLOW) assert.equal(st[u], 'pending', u);
+  for (const d of effectiveDashboards(ctx).filter((x) => NETFLOW.includes(x.dashboard.uid))) {
+    assert.equal(d.dashboard.panels[0].title, 'Setup still incomplete');
+    assert.match(d.dashboard.panels[0].options.content, /setup --clickhouse/);
+    assert.deepEqual(datasourceRefs(d.dashboard), ['netflow-clickhouse'], 'datasource reference kept: works once ClickHouse is connected');
+  }
   for (const u of NOC) assert.equal(st[u], 'ok', u);
   assert.equal(effectivePlaylists(ctx)[0].state, 'skipped');
   assert.equal(NETFLOW.length, 5);
@@ -122,18 +127,26 @@ test('CLICKHOUSE_ENABLED=yes (default): both datasources, all dashboards, full p
   assert.equal(pl.state, 'ok'); assert.equal(pl.playlist.items.length, 5);
 });
 
-test('NOC dashboards: a missing OR partial item map is deferred by default (refused only with ALLOW_NOC_WITHOUT_ITEM_MAP=no) - never deployed half-mapped', () => {
-  const partial = { 51128: '1' };
+test('NOC dashboards: a missing OR partial item map deploys them with a notice and EMPTY unmapped ids (refused only with ALLOW_NOC_WITHOUT_ITEM_MAP=no)', () => {
+  const partial = { 51128: '777' };
   for (const itemMap of [null, partial]) {
     const refused = effectiveDashboards({ env: ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'no' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
     assert.ok(refused.every((d) => d.state === 'refused'), JSON.stringify(refused.map((d) => d.state)));
-    const deferred = effectiveDashboards({ env: ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'YES' }), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
-    assert.ok(deferred.every((d) => d.state === 'skipped' && /deferred/.test(d.reason)));
-    const byDefault = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
-    assert.ok(byDefault.every((d) => d.state === 'skipped'), 'deferral is the default');
+    for (const env of [ENV({ ALLOW_NOC_WITHOUT_ITEM_MAP: 'YES' }), ENV({})]) {
+      const dep = effectiveDashboards({ env, envName: 'production', itemMap }).filter((d) => NOC.includes(d.dashboard.uid));
+      assert.equal(dep.length, 2);
+      for (const d of dep) {
+        assert.equal(d.state, 'pending');
+        assert.equal(d.dashboard.panels[0].title, 'Setup still incomplete');
+        assert.ok(!Object.keys(LABIDS).some((lab) => itemIds(d.dashboard).includes(lab)), 'no LAB item id may reach another Zabbix');
+        assert.deepEqual(datasourceRefs(d.dashboard), ['zabbix-lab'], 'uses the existing Zabbix datasource');
+      }
+    }
   }
+  const dh = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap: partial }).find((d) => d.dashboard.uid === 'noc-device-health');
+  assert.ok(itemIds(dh.dashboard).includes('777'), 'mapped ids are used');
   const ok = effectiveDashboards({ env: ENV({}), envName: 'production', itemMap: fullMap }).filter((d) => NOC.includes(d.dashboard.uid));
-  for (const d of ok) assert.ok(!JSON.stringify(d.dashboard).match(/"itemids":"(5\d{4})/), 'no LAB id left in a deployed NOC dashboard');
+  for (const d of ok) { assert.equal(d.state, 'ok'); assert.notEqual(d.dashboard.panels[0].title, 'Setup still incomplete'); assert.ok(!JSON.stringify(d.dashboard).match(/"itemids":"(5\d{4})/), 'no LAB id left in a deployed NOC dashboard'); }
 });
 
 test('datasourceRefs ignores expressions and finds the real datasources of each folder', () => {
@@ -144,11 +157,11 @@ test('datasourceRefs ignores expressions and finds the real datasources of each 
   }
 });
 
-test('ZABBIX_ENABLED=no: Grafana without Zabbix - no Zabbix datasource, NOC dashboards deferred, NetFlow unaffected', () => {
+test('ZABBIX_ENABLED=no: Grafana without Zabbix - no Zabbix datasource, NOC dashboards deployed with a notice, NetFlow unaffected', () => {
   const env = ENV({ ZABBIX_ENABLED: 'no', ZABBIX_URL: '', ZABBIX_USER: '' });
   assert.deepEqual(renderDatasources(env).map((d) => d.uid), ['netflow-clickhouse']);
   const st = Object.fromEntries(effectiveDashboards({ env, envName: 'production', itemMap: fullMap }).map((d) => [d.dashboard.uid, d]));
-  for (const u of NOC) { assert.equal(st[u].state, 'skipped'); assert.match(st[u].reason, /ZABBIX_ENABLED=no/); }
+  for (const u of NOC) { assert.equal(st[u].state, 'pending'); assert.match(st[u].reason, /ZABBIX_ENABLED=no/); }
   for (const u of NETFLOW) assert.equal(st[u].state, 'ok');
   const none = ENV({ ZABBIX_ENABLED: 'no', CLICKHOUSE_ENABLED: 'no', ZABBIX_URL: '', CLICKHOUSE_HOST: '' });
   assert.deepEqual(renderDatasources(none), [], 'base Grafana only');

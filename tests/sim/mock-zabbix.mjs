@@ -42,7 +42,17 @@ createServer((req, res) => {
     }
     // read-only call made by the real Grafana Zabbix plugin's health check
     if (q.method === 'hostgroup.get') return ok([{ groupid: '1', name: 'Routers' }]);
-    if (q.method === 'item.get') return ok(items.filter((i) => q.params.hostids.includes(i.hostid) && (!q.params.filter || q.params.filter.key_.includes(i.key_))));
+    if (q.method === 'item.get') {
+      const ids = q.params.itemids && [].concat(q.params.itemids).map(String); const hids = q.params.hostids && [].concat(q.params.hostids).map(String);
+      return ok(items.filter((i) => (!ids || ids.includes(i.itemid)) && (!hids || hids.includes(i.hostid)) && (!q.params.filter?.key_ || q.params.filter.key_.includes(i.key_)))
+        .map((i) => ({ ...i, value_type: '3', units: '', hosts: [{ hostid: i.hostid, name: (hosts.find((h) => h.hostid === i.hostid) || {}).name }] })));
+    }
+    // read-only data calls made by the real Grafana Zabbix plugin for panel queries: one synthetic value per minute
+    if (q.method === 'history.get' || q.method === 'trend.get') {
+      const now = Math.floor(Date.now() / 1000); const from = Number(q.params.time_from || now - 3600);
+      const rows = []; for (const id of [].concat(q.params.itemids || []).map(String)) for (let t = from; t <= now; t += 60) rows.push({ itemid: id, clock: String(t), value: String(1000 + (t % 97)), ns: '0', value_min: '1', value_avg: '2', value_max: '3', num: '1' });
+      return ok(rows);
+    }
     err('Method not found.', `${q.method} is not allowed in the simulation (read-only)`);
   });
 }).listen(Number(port), '127.0.0.1', () => console.log(`mock-zabbix on 127.0.0.1:${port} (${hosts.length} hosts, ${items.length} items)`));

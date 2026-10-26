@@ -86,7 +86,8 @@ if (args['datasource-only']) { summary(); process.exit(tally.refused ? 3 : 0); }
 if (!args['skip-dashboards']) {
   const known = new Set(folders.map((f) => f.uid));
   for (const { file, folderDir, dashboard, state, reason } of effectiveDashboards(CTX)) {
-    if (state !== 'ok') { say(state, `${file}: ${reason}`); continue; }
+    if (state === 'refused') { say('refused', `${file}: ${reason}`); continue; }
+    if (state === 'pending') console.log(`note      ${dashboard.uid}: deployed with a notice panel - ${reason}`);
     if (!known.has(folderDir)) { say('refused', `${file}: directory "${folderDir}" is not a folder in config/folders.json`); continue; }
     const want = normalizeDashboard(dashboard);
     const cur = await get(`/api/dashboards/uid/${dashboard.uid}`, { allow404: true });

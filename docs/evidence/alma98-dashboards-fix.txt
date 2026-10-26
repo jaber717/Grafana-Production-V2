@@ -1,0 +1,103 @@
+# AlmaLinux 9.8 container: state reproduced with the published 2.2.1 (Zabbix connected, ClickHouse not, router names skipped) -> NetFlow 0, NOC 0 dashboards
+# then: sudo ./install.sh --dashboards (2.2.2 working tree), router host names given; then the same command again
+
+log: /var/log/grafana-platform/dashboards-20261026-153137.log
+
+== Dashboards (Grafana itself is not reinstalled or restarted)
+[PASS] release 2.2.2 deployed to /opt/grafana-platform/releases/2.2.2 (command: /usr/local/sbin/grafana-platform)
+
+== Zabbix item map for the 2 NOC dashboards
+    These LAB router names are not in your Zabbix: SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B
+  Type their Zabbix host names now? (n = keep the NOC dashboards for later) [Y/n]: 
+  Zabbix host name for SITE-A (Enter = skip): (answered)
+  Zabbix host name for SITE-B (Enter = skip): (answered)
+  Zabbix host name for STC (Enter = skip): (answered)
+  Zabbix host name for MOBILY (Enter = skip): (answered)
+  Zabbix host name for INT-CORE (Enter = skip): (answered)
+  Zabbix host name for SAIX-A (Enter = skip): (answered)
+  Zabbix host name for SAIX-B (Enter = skip): (answered)
+    wrote /etc/grafana-platform/zabbix-item-map.json: 47 of 47 item(s) mapped (47 resolved now)
+    all items mapped
+    7 router uptime item(s) were matched by standard SNMP keys: confirm them in Zabbix (list: /etc/grafana-platform/zabbix-item-map.report.txt)
+
+== Importing the dashboards (matched by uid: re-running never duplicates)
+    unchanged folder netflow
+    unchanged folder noc
+    unchanged datasource zabbix-lab
+              health: OK Zabbix API version 7.0.30
+    note      netflow-asn: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    created   dashboard netflow-asn -> netflow
+    note      netflow-exporters: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    created   dashboard netflow-exporters -> netflow
+    note      netflow-health: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    created   dashboard netflow-health -> netflow
+    note      netflow-overview: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    created   dashboard netflow-overview -> netflow
+    note      netflow-top-talkers: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    created   dashboard netflow-top-talkers -> netflow
+    created   dashboard noc-device-health -> noc
+    created   dashboard noc-wan-overview -> noc
+    applied: 7 created, 0 updated, 3 unchanged, 0 refused, 2 skipped
+
+== What Grafana holds now (read back through its API)
+  folder NetFlow (netflow): 5 dashboard(s) in Grafana, 5 managed
+    present  netflow-asn  "NetFlow | ASN & Internet"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-exporters  "NetFlow | Exporters & Interfaces"  9 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-health  "NetFlow | Platform Health"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-overview  "NetFlow | NOC Overview"  17 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-top-talkers  "NetFlow | Top Talkers"  14 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+  folder NOC (noc): 2 dashboard(s) in Grafana, 2 managed
+    present  noc-device-health  "NOC — Device Health"  10 panels  datasource: zabbix-lab
+    present  noc-wan-overview  "NOC — WAN Overview"  6 panels  datasource: zabbix-lab
+  dashboards: 7 of 7 present in Grafana; 2 complete, 5 with setup incomplete
+
+----- second run (identical)
+log: /var/log/grafana-platform/dashboards-20261026-153152.log
+
+== Dashboards (Grafana itself is not reinstalled or restarted)
+[PASS] release 2.2.2 deployed to /opt/grafana-platform/releases/2.2.2 (command: /usr/local/sbin/grafana-platform)
+
+== Zabbix item map for the 2 NOC dashboards
+    wrote /etc/grafana-platform/zabbix-item-map.json: 47 of 47 item(s) mapped (0 resolved now, 47 kept from the previous file)
+    all items mapped
+
+== Importing the dashboards (matched by uid: re-running never duplicates)
+    unchanged folder netflow
+    unchanged folder noc
+    unchanged datasource zabbix-lab
+              health: OK Zabbix API version 7.0.30
+    note      netflow-asn: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-asn
+    note      netflow-exporters: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-exporters
+    note      netflow-health: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-health
+    note      netflow-overview: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-overview
+    note      netflow-top-talkers: deployed with a notice panel - ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    unchanged dashboard netflow-top-talkers
+    unchanged dashboard noc-device-health
+    unchanged dashboard noc-wan-overview
+    applied: 0 created, 0 updated, 10 unchanged, 0 refused, 2 skipped
+
+== What Grafana holds now (read back through its API)
+  folder NetFlow (netflow): 5 dashboard(s) in Grafana, 5 managed
+    present  netflow-asn  "NetFlow | ASN & Internet"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-exporters  "NetFlow | Exporters & Interfaces"  9 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-health  "NetFlow | Platform Health"  12 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-overview  "NetFlow | NOC Overview"  17 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+    present  netflow-top-talkers  "NetFlow | Top Talkers"  14 panels  datasource: netflow-clickhouse (datasource not in Grafana)
+             setup incomplete: ClickHouse (Akvorado NetFlow) not connected yet (CLICKHOUSE_ENABLED=no); connect it: sudo grafana-platform setup --clickhouse
+  folder NOC (noc): 2 dashboard(s) in Grafana, 2 managed
+    present  noc-device-health  "NOC — Device Health"  10 panels  datasource: zabbix-lab
+    present  noc-wan-overview  "NOC — WAN Overview"  6 panels  datasource: zabbix-lab
+  dashboards: 7 of 7 present in Grafana; 2 complete, 5 with setup incomplete

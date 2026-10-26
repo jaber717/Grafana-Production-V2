@@ -39,7 +39,7 @@ for (const want of args['skip-datasources'] ? [] : CTX.datasources) {
 const managed = new Set();
 for (const { file, folderDir, dashboard, state, reason } of effectiveDashboards(CTX)) {
   managed.add(dashboard.uid);
-  if (state === 'skipped') { rec('WARN', `dashboard ${dashboard.uid}`, `not deployed: ${reason}`); continue; }
+  if (state === 'pending') rec('WARN', `dashboard ${dashboard.uid}`, `deployed, setup incomplete: ${reason}`);
   if (state === 'refused') { rec('FAIL', `dashboard ${dashboard.uid}`, reason); continue; }
   const cur = await get(`/api/dashboards/uid/${dashboard.uid}`, { allow404: true });
   if (!cur) { rec('FAIL', `dashboard ${dashboard.uid}`, 'missing'); continue; }

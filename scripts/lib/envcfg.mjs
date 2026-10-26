@@ -96,19 +96,25 @@ export function itemIds(dash) {
   return ids;
 }
 
-/** Returns { dashboard, missing:[ids without a mapping] }. Does not mutate the input. A null/undefined map = identity (LAB). */
-export function applyItemMap(dash, map) {
+/** Returns { dashboard, missing:[ids without a mapping], affectedPanels:[titles] }. Does not mutate the input. A null/undefined map = identity (LAB).
+ *  blankMissing: an id without a mapping is removed instead of kept (a LAB id must never reach another Zabbix). */
+export function applyItemMap(dash, map, { blankMissing = false } = {}) {
   const copy = JSON.parse(JSON.stringify(dash));
-  if (!map) return { dashboard: copy, missing: [] };
-  const missing = new Set();
-  (function walk(o) {
+  if (!map) return { dashboard: copy, missing: [], affectedPanels: [] };
+  const missing = new Set(); const affected = new Set();
+  (function walk(o, panel) {
     if (!o || typeof o !== 'object') return;
+    const here = o.gridPos && 'type' in o ? o : panel;
     if (typeof o.itemids === 'string' && String(o.queryType) === '3') {
-      o.itemids = o.itemids.split(',').map((s) => s.trim()).filter(Boolean).map((i) => { if (map[i] === undefined || map[i] === '') { missing.add(i); return i; } return String(map[i]); }).join(',');
+      const out = [];
+      for (const i of o.itemids.split(',').map((x) => x.trim()).filter(Boolean)) {
+        if (map[i] === undefined || map[i] === '') { missing.add(i); if (here) affected.add(here.title || `panel ${here.id}`); if (!blankMissing) out.push(i); } else out.push(String(map[i]));
+      }
+      o.itemids = out.join(',');
     }
-    Object.values(o).forEach(walk);
-  })(copy);
-  return { dashboard: copy, missing: [...missing].sort() };
+    Object.values(o).forEach((v) => walk(v, here));
+  })(copy, null);
+  return { dashboard: copy, missing: [...missing].sort(), affectedPanels: [...affected] };
 }
 
 export function loadItemMap(path) {

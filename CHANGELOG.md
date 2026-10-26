@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.2.2] - 2026-10-26
+
+**All 7 dashboards are always imported; nothing is silently skipped.** Production (2.2.1): both folders NetFlow and NOC existed but were
+empty while the install reported 0 FAIL. Cause: every dashboard was *deferred by design* — the 5 NetFlow dashboards because ClickHouse was
+not connected (`CLICKHOUSE_ENABLED=no`; they query only ClickHouse), the 2 NOC dashboards because the Zabbix item map was missing/incomplete
+(router host names not given) — and each deferral was only a WARN, which the setup screen filtered out; the folders were created anyway.
+
+### Changed
+* Every managed dashboard is deployed. One whose setup is incomplete carries a notice panel at the top that says what is missing and the
+  one command that completes it; it is updated automatically (notice removed) once that is done:
+  * NetFlow without ClickHouse: datasource reference kept (`netflow-clickhouse`), panels empty until `setup --clickhouse`.
+  * NOC with a missing/partial item map: mapped Zabbix item ids are used; unmapped ones are left **empty** (a LAB id is never sent to
+    another Zabbix); the notice lists the affected panels. `ALLOW_NOC_WITHOUT_ITEM_MAP=no` still refuses instead.
+* Install summary and `verify` report what Grafana actually holds, read back through its API (`scripts/dashboards-report.mjs`).
+
+### Added
+* `sudo ./install.sh --dashboards` (= `grafana-platform setup --dashboards`): (re)imports all dashboards into the running Grafana —
+  no package, grafana.ini, service, firewall or datasource change, no restart; updates the release files, asks the Zabbix host names the
+  item map cannot find, applies idempotently (matched by uid: no duplicates), and prints the API read-back.
+
 ## [2.2.1] - 2026-10-25
 
 **Interrupted downloads are recovered, never repeated, never trusted unchecked.** Production: the single 336 MB release-asset download

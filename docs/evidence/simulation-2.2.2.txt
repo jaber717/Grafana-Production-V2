@@ -1,0 +1,138 @@
+
+### Offline bundle: built by tools/build-offline-bundle.sh from a local mirror (fake artifacts, real pin checks)
+  [PASS] bundle builder succeeds against the mirror (rc=0)
+  [PASS] builder found the RPM through the repository metadata
+  [PASS] archive + .sha256 produced and verify
+  [PASS] builder ABORTS when a download does not match its pin (rc=1)
+  [PASS] extracted release carries bundle/ (rpm, plugins, node, SHA256SUMS)
+
+### Release 1.x reproduction: preflight of the ORIGINAL code with the reported configuration shape
+    exact "yes": [WARN] Zabbix over plain http (ALLOW_INSECURE_DATASOURCES=yes) PREFLIGHT: 30 PASS, 2 WARN, 5 FAIL 
+  [PASS] 1.x: exact 'ALLOW_INSECURE_DATASOURCES=yes' IS honored (WARN) -> the reported FAIL needs a different byte sequence or file
+  [PASS] 1.x: missing secrets, unreachable rpm.grafana.com/grafana.com and missing item map FAIL as reported
+  [PASS] 1.x reproduces the reported Zabbix FAIL with:   ALLOW_INSECURE_DATASOURCES=yes   # temporary, TLS failed  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCES=YES  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCES=true  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCES=M-bM-^@M-^\yesM-bM-^@M-^]  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCES=yesM-BM-   (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCE=yes  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+  [PASS] 1.x reproduces the reported Zabbix FAIL with: ALLOW_INSECURE_DATASOURCES=yes|ALLOW_INSECURE_DATASOURCES=no  (PREFLIGHT: 30 PASS, 1 WARN, 6 FAIL)
+
+### 2.0 environment parser: wrong files are rejected with the precise reason (nothing runs)
+  [PASS] 2.0 reports: ALLOW_INSECURE_DATASOURCE=yes  ->  /did you mean ALLOW_INSECURE_DATASOURCES|is not a setting of this release; the setting is called ALLOW_INSECURE_DATASOURCES/
+  [PASS] 2.0 reports: ZABBIX_ALLOW_HTTP=yes  ->  /the setting is called ALLOW_INSECURE_DATASOURCES/
+  [PASS] 2.0 reports: ALLOW_INSECURE_DATASOURCES=maybe  ->  /must be yes or no/
+  [PASS] 2.0 reports: ALLOW_INSECURE_DATASOURCES=M-bM-^@M-^\yesM-bM-^@M-^]  ->  /typographic quote/
+  [PASS] 2.0 reports: ALLOW_INSECURE_DATASOURCES=yes|ALLOW_INSECURE_DATASOURCES=no  ->  /already set on line/
+  [PASS] 2.0 reports: BUNDLE_DIR=$PWD/bundle  ->  /shell variables are NOT expanded/
+  [PASS] 2.0 normalizes   ALLOW_INSECURE_DATASOURCES=yes   # temporary to yes
+  [PASS] 2.0 normalizes ALLOW_INSECURE_DATASOURCES=YES to yes
+  [PASS] 2.0 normalizes ALLOW_INSECURE_DATASOURCES=true to yes
+  [PASS] 2.0 normalizes ALLOW_INSECURE_DATASOURCES=on to yes
+  [PASS] 2.0 normalizes ALLOW_INSECURE_DATASOURCES=yesM-BM-  to yes
+  [PASS] 2.0 normalizes M-oM-;M-?ALLOW_INSECURE_DATASOURCES=yes to yes
+  [PASS] 2.0 normalizes export ALLOW_INSECURE_DATASOURCES="yes" # c to yes
+  [PASS] 2.0 normalizes ALLOW_INSECURE_DATASOURCES=yes^M to yes
+
+### 2.0 one-line environment creation + preflight in the reported situation (no secrets yet, no Internet, no item map)
+  [PASS] init-env creates the file in one line
+  [PASS] preflight exits non-zero while secrets/map are missing
+  [PASS] Zabbix over HTTP is a WARN (flag honored), not a FAIL
+  [PASS] Grafana over HTTP is a WARN
+  [PASS] missing zabbix-password FAIL carries the exact command
+  [PASS] clickhouse-password is NOT required while NetFlow is deferred
+  [PASS] offline bundle found automatically: no rpm.grafana.com/grafana.com FAIL
+  [PASS] missing item map is NOT a blocker: NOC dashboards imported with a notice (WARN)
+  [PASS] Zabbix reachability probed read-only
+  [PASS] every FAIL line is followed by a fix line
+
+### 2.0 secrets: stored from a prompt/pipe, never echoed
+  [PASS] secret set stores mode 600 root:root
+  [PASS] the value never appears in the output
+  [PASS] zabbix-check FAILS with a wrong password (rc=1) and says how to fix it
+  [PASS] zabbix-check PASSES with the right password (login + host count + logout)
+  [PASS] no secret in any log or output file
+
+### 2.0 install with the NOC dashboards deferred (simplest first deployment)
+  [PASS] preflight passes (rc=0) with only WARNs
+  [PASS] install completes (rc=0)
+  [PASS] grafana.ini rendered for http, cookie_secure=false, secrets by $__file
+  [PASS] plugins extracted from the bundle after SHA-256 check
+  [PASS] Zabbix datasource created over HTTP and its health check logs in for real
+  [PASS] ClickHouse datasource and playlist skipped; the 5 NetFlow dashboards ARE deployed, each with a notice panel
+  [PASS] NOC dashboards deployed without an item map: notice panel, and NO LAB item id reaches this Zabbix
+  [PASS] mock Grafana holds 1 datasource and all 7 dashboards (no empty folder)
+  [PASS] release deployed with its bundle; command linked
+  [PASS] the bundled RPM is cached for rollbacks
+
+### 2.0 Zabbix item map: production host names differ from the LAB names
+  [PASS] without host renames the map is INCOMPLETE (rc=0), nothing guessed
+  [PASS] with --host renames the map is complete (rc=0)
+  [PASS] the 7 uptime items are listed for REVIEW with the key that matched
+  [PASS] item map file 0640 and only numeric ids
+  [PASS] only read-only Zabbix methods were called
+  [PASS] apply deploys the 2 NOC dashboards (rc=0)
+  [PASS] deployed NOC dashboards carry production item ids, no LAB id remains
+  [PASS] verify after apply: no FAIL
+
+### 2.0 enabling ClickHouse/Akvorado later (three single-line commands)
+  [PASS] apply creates the ClickHouse datasource, 5 NetFlow dashboards and the playlist (rc=0)
+  [PASS] ClickHouse datasource health OK, plain HTTP reported as WARN
+
+### 2.0 idempotency and verification
+  [PASS] a second install changes nothing (rc=0)
+  [PASS] verify: 0 FAIL (rc=0)
+  [PASS] preflight on the installed host needs no package source any more
+
+### 2.0 a half-built item map is never deployed
+  [PASS] partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=no -> FAIL with fix (rc=1)
+  [PASS] partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards deployed with a notice, mapped ids used, no LAB id (rc=0)
+
+### 2.0 repo mode on an isolated host: one FAIL, with the way out
+  [PASS] no bundle + no Internet -> ONE package FAIL that names the fix (proxy)
+
+### ONE command: sudo ./install.sh from a git clone WITHOUT bundle; the offline archive lies next to it (auto-found, verified, unpacked)
+  [PASS] sudo ./install.sh completes in one run (rc=0)
+  [PASS] the offline archive next to the clone was found, verified against the pins and unpacked
+  [PASS] the Zabbix URL got /api_jsonrpc.php appended, HTTP was allowed only after the explicit question
+  [PASS] a wrong Zabbix password is caught BEFORE installing and asked again
+  [PASS] Grafana HTTP chosen explicitly; no configuration file edited by hand
+  [PASS] item map built automatically; the 7 production host names asked once; NOC dashboards deployed
+  [PASS] ClickHouse skipped without blocking anything; NetFlow dashboards present with a notice
+  [PASS] secrets: mode 600, never in the output or logs
+  [PASS] the admin password typed during setup is the one Grafana accepts
+  [PASS] number of questions on a first install: 16 (incl. 1 retry and 7 host names)
+  [PASS] the operator sees a short screen: 69 lines for the whole first installation
+
+### Re-run: Enter keeps everything (safe, changes nothing) / --yes without any question
+  [PASS] re-run with Enter = keep: completes, nothing created or updated (rc=0)
+  [PASS] --yes re-run asks nothing and changes nothing (rc=0)
+
+### Add ClickHouse later: sudo ./install.sh --clickhouse
+  [PASS] --clickhouse adds the datasource, 5 NetFlow dashboards and the playlist (rc=0)
+  [PASS] the earlier HTTP permission is reused, not asked again
+
+### Base Grafana without any integration, Zabbix added afterwards
+  [PASS] Grafana installs with Zabbix AND ClickHouse not connected (rc=0)
+  [PASS] generated admin password: path shown, value not printed
+  [PASS] --zabbix later: datasource + NOC dashboards (rc=0)
+
+### Safety: no package anywhere -> stops before changing anything; tampered archive refused; pinned download works
+  [PASS] no bundle, no archive, no Internet: one clear message, nothing installed (rc=1)
+  [PASS] an unusable archive is refused, never installed from (rc=1)
+  [PASS] download with a WRONG pinned SHA-256 is refused (rc=1)
+  [PASS] download with the right SHA-256: fetched once, verified, installed (rc=0)
+
+### Restore the full state for the rollback tests
+  [PASS] everything in ONE run: Zabbix + ClickHouse + NOC + NetFlow (rc=0)
+
+### Rollback: uninstall keeps configuration/secrets/data, reinstall restores the same state, --purge returns a clean host
+  [PASS] uninstall succeeds (rc=0)
+  [PASS] package, service, firewall rules, release and command link are gone
+  [PASS] configuration, secrets and item map are kept
+  [PASS] reinstall from the unpacked release with the kept configuration (rc=0), no prompts, no --env-file
+  [PASS] reinstalled state is complete again: 7 dashboards
+  [PASS] uninstall --purge (rc=0) removes configuration, secrets and data
+
+SIMULATION: 98 PASS, 0 FAIL
+  [PASS] isolation: host os-release, users/groups and /usr/local are unchanged

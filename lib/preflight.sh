@@ -110,7 +110,7 @@ run_preflight() {
     elif [ "$ALLOW_INSECURE_DATASOURCES" = yes ]; then warn "ClickHouse over plain HTTP (allowed by ALLOW_INSECURE_DATASOURCES=yes)"
     else fail "CLICKHOUSE_SECURE=false and ALLOW_INSECURE_DATASOURCES is '$ALLOW_INSECURE_DATASOURCES'"; fix "enable TLS on ClickHouse, or: $cli config set ALLOW_INSECURE_DATASOURCES=yes $ef"; fi
   else
-    warn "NetFlow deferred (CLICKHOUSE_ENABLED=no): the ClickHouse datasource, the 5 NetFlow dashboards and the NetFlow playlist are NOT deployed (nothing broken is created)"
+    warn "NetFlow not connected (CLICKHOUSE_ENABLED=no): no ClickHouse datasource and no NetFlow playlist; the 5 NetFlow dashboards are imported with a notice panel and stay empty until ClickHouse is connected"
     info "add it later: sudo ./install.sh --clickhouse"
   fi
   case "$PLATFORM_ENV" in production) pass "PLATFORM_ENV=production" ;; *) warn "PLATFORM_ENV=$PLATFORM_ENV (not production)" ;; esac
@@ -213,12 +213,12 @@ PY
     *)
       local what; [ "$mapstate" = nomap ] && what="no item map yet" || what="item map misses $missing_n of $need_n item ids (${missing_ids}...)"
       if [ "$ALLOW_NOC_WITHOUT_ITEM_MAP" = yes ]; then
-        warn "NOC dashboards deferred: $what. They are NOT deployed (no half-mapped dashboard is ever created); the NetFlow dashboards are unaffected"
-        info "the installer builds the map from Zabbix after Grafana is up; later: sudo ./install.sh --zabbix"
+        warn "NOC item map incomplete: $what. The 2 NOC dashboards are imported with a notice panel; unmapped panels stay empty (no LAB item id is ever used)"
+        info "the installer builds the map from Zabbix after Grafana is up; later: sudo ./install.sh --dashboards"
       else
         fail "NOC dashboards cannot be deployed: $what"
         fix "either build the map now: $cli item-map $ef   (needs the Zabbix password secret; reads Zabbix only)"
-        fix "or defer the 2 NOC dashboards: $cli config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes $ef"
+        fix "or import them with empty unmapped panels: $cli config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes $ef"
       fi ;;
   esac
   fi
