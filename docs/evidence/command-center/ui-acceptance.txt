@@ -1,0 +1,135 @@
+NOC — Command Center: browser acceptance (tests/noc/ui-command-center.py), 2026-10-27
+Grafana 13.2.3 (RPM) + Zabbix plugin 6.8.0 on AlmaLinux 9.8 (RHEL 9 rebuild, systemd), dashboard deployed by install.sh --dashboards.
+Zabbix = tests/noc/zabbix7-api.mjs --fleet (TEST stand-in of the Zabbix 7.0 API, NOT the production Zabbix). Adopted data source 'Zabbix Production'.
+Default Device Type groups: /router|rtr/i, /switch/i, /firewall/i (22 of the 24 network devices; 'Network/WAN Edge' not mapped).
+
+### Default view: Device Type All, Devices All
+  [PASS] All / All: KPI tiles {'Selected devices': 22, 'UP': 19, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] All / All: problems list = 10 problems of the selected devices
+  [PASS] All / All: fleet table = the 22 selected devices
+  [PASS] All / All: no non-network / unmapped host
+  [PASS] All / All: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] All / All: DOWN first, then UNKNOWN, then UP
+  [PASS] All / All: Type per device
+  [PASS] All / All: missing CPU/Memory shown as '—' (never 0)
+  [PASS] All / All: devices with CPU/Memory items show a percentage
+  [PASS] All / All: agent-monitored firewall is UP
+### Device Type filter (host groups)
+  [PASS] Type Router: Devices picker offers exactly the 6 hosts of the type
+  [PASS] Type Router: KPI tiles {'Selected devices': 6, 'UP': 5, 'DOWN': 1, 'UNKNOWN': 0, 'High / Disaster problems': 1}
+  [PASS] Type Router: problems list = 3 problems of the selected devices
+  [PASS] Type Router: fleet table = the 6 selected devices
+  [PASS] Type Router: no non-network / unmapped host
+  [PASS] Type Router: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] Type Router: DOWN first, then UNKNOWN, then UP
+  [PASS] Type Router: Type per device
+  [PASS] Type Router: missing CPU/Memory shown as '—' (never 0)
+  [PASS] Type Router: devices with CPU/Memory items show a percentage
+  [PASS] Type Switch: Devices picker offers exactly the 9 hosts of the type
+  [PASS] Type Switch: KPI tiles {'Selected devices': 9, 'UP': 8, 'DOWN': 0, 'UNKNOWN': 1, 'High / Disaster problems': 0}
+  [PASS] Type Switch: problems list = 3 problems of the selected devices
+  [PASS] Type Switch: fleet table = the 9 selected devices
+  [PASS] Type Switch: no non-network / unmapped host
+  [PASS] Type Switch: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] Type Switch: DOWN first, then UNKNOWN, then UP
+  [PASS] Type Switch: Type per device
+  [PASS] Type Switch: missing CPU/Memory shown as '—' (never 0)
+  [PASS] Type Switch: devices with CPU/Memory items show a percentage
+  [PASS] Type Firewall: Devices picker offers exactly the 7 hosts of the type
+  [PASS] Type Firewall: KPI tiles {'Selected devices': 7, 'UP': 6, 'DOWN': 1, 'UNKNOWN': 0, 'High / Disaster problems': 2}
+  [PASS] Type Firewall: problems list = 4 problems of the selected devices
+  [PASS] Type Firewall: fleet table = the 7 selected devices
+  [PASS] Type Firewall: no non-network / unmapped host
+  [PASS] Type Firewall: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] Type Firewall: DOWN first, then UNKNOWN, then UP
+  [PASS] Type Firewall: Type per device
+  [PASS] Type Firewall: missing CPU/Memory shown as '—' (never 0)
+  [PASS] Type Firewall: devices with CPU/Memory items show a percentage
+### 1 device chosen in the picker
+  [PASS] 1 device: URL holds the selection
+  [PASS] 1 device: KPI tiles {'Selected devices': 1, 'UP': 0, 'DOWN': 0, 'UNKNOWN': 1, 'High / Disaster problems': 0}
+  [PASS] 1 device: problems list = 0 problems of the selected devices
+  [PASS] 1 device: fleet table = the 1 selected devices
+  [PASS] 1 device: no non-network / unmapped host
+  [PASS] 1 device: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] 1 device: DOWN first, then UNKNOWN, then UP
+  [PASS] 1 device: Type per device
+  [PASS] 1 device: missing CPU/Memory shown as '—' (never 0)
+  [PASS] 1 device: devices with CPU/Memory items show a percentage
+### 9 mixed devices chosen in the picker
+  [PASS] 9 devices: URL holds the 9 selected devices
+  [PASS] 9 devices: all 9 rows shown at once on a 1920x1080 screen (no scrolling)
+  [PASS] 9 devices: every row inside the visible table area (9 rows drawn)
+  [PASS] 9 devices: mixes routers, switches and firewalls
+  [PASS] 9 devices: KPI tiles {'Selected devices': 9, 'UP': 6, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] 9 devices: problems list = 6 problems of the selected devices
+  [PASS] 9 devices: fleet table = the 9 selected devices
+  [PASS] 9 devices: no non-network / unmapped host
+  [PASS] 9 devices: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] 9 devices: DOWN first, then UNKNOWN, then UP
+  [PASS] 9 devices: Type per device
+  [PASS] 9 devices: missing CPU/Memory shown as '—' (never 0)
+  [PASS] 9 devices: devices with CPU/Memory items show a percentage
+### Changing the selection: one device removed, another added
+  [PASS] remove 1: URL now holds 8 devices
+  [PASS] 8 devices: KPI tiles {'Selected devices': 8, 'UP': 5, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] 8 devices: problems list = 6 problems of the selected devices
+  [PASS] 8 devices: fleet table = the 8 selected devices
+  [PASS] 8 devices: no non-network / unmapped host
+  [PASS] 8 devices: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] 8 devices: DOWN first, then UNKNOWN, then UP
+  [PASS] 8 devices: Type per device
+  [PASS] 8 devices: missing CPU/Memory shown as '—' (never 0)
+  [PASS] 8 devices: devices with CPU/Memory items show a percentage
+  [PASS] 8 devices + JED-FW-03: KPI tiles {'Selected devices': 9, 'UP': 6, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] 8 devices + JED-FW-03: problems list = 6 problems of the selected devices
+  [PASS] 8 devices + JED-FW-03: fleet table = the 9 selected devices
+  [PASS] 8 devices + JED-FW-03: no non-network / unmapped host
+  [PASS] 8 devices + JED-FW-03: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] 8 devices + JED-FW-03: DOWN first, then UNKNOWN, then UP
+  [PASS] 8 devices + JED-FW-03: Type per device
+  [PASS] 8 devices + JED-FW-03: missing CPU/Memory shown as '—' (never 0)
+  [PASS] 8 devices + JED-FW-03: devices with CPU/Memory items show a percentage
+### Bookmark: the URL alone restores the selection
+  [PASS] bookmark: same devices selected after reopening
+  [PASS] bookmark: KPI tiles {'Selected devices': 9, 'UP': 6, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] bookmark: problems list = 6 problems of the selected devices
+  [PASS] bookmark: fleet table = the 9 selected devices
+  [PASS] bookmark: no non-network / unmapped host
+  [PASS] bookmark: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] bookmark: DOWN first, then UNKNOWN, then UP
+  [PASS] bookmark: Type per device
+  [PASS] bookmark: missing CPU/Memory shown as '—' (never 0)
+  [PASS] bookmark: devices with CPU/Memory items show a percentage
+### 20+ devices selected one by one (URL with every device)
+  [PASS] 22 devices: KPI tiles {'Selected devices': 22, 'UP': 19, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] 22 devices: problems list = 10 problems of the selected devices
+  [PASS] 22 devices: fleet table = the 22 selected devices
+  [PASS] 22 devices: no non-network / unmapped host
+  [PASS] 22 devices: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] 22 devices: DOWN first, then UNKNOWN, then UP
+  [PASS] 22 devices: Type per device
+  [PASS] 22 devices: missing CPU/Memory shown as '—' (never 0)
+  [PASS] 22 devices: devices with CPU/Memory items show a percentage
+  [PASS] 22 devices: table scrolls (not all rows drawn at once on the wallboard)
+  [PASS] 22 devices: scrolling reaches the last device (JED-FW-05)
+  [PASS] fleet table columns: Device, Type, Status, CPU, Memory
+### Refresh
+  [PASS] auto-refresh (30s default) re-queried Zabbix
+  [PASS] Refresh button re-queries Zabbix
+  [PASS] after refresh: KPI tiles {'Selected devices': 22, 'UP': 19, 'DOWN': 2, 'UNKNOWN': 1, 'High / Disaster problems': 3}
+  [PASS] after refresh: problems list = 10 problems of the selected devices
+  [PASS] after refresh: fleet table = the 22 selected devices
+  [PASS] after refresh: no non-network / unmapped host
+  [PASS] after refresh: Status per device (UP / DOWN / UNKNOWN)
+  [PASS] after refresh: DOWN first, then UNKNOWN, then UP
+  [PASS] after refresh: Type per device
+  [PASS] after refresh: missing CPU/Memory shown as '—' (never 0)
+  [PASS] after refresh: devices with CPU/Memory items show a percentage
+### Drill-down to NOC — Device Health
+  [PASS] drill-down: 'JED-RTR-04' opens NOC — Device Health for that device
+  [PASS] drill-down: Device Health's Device picker shows it
+### No query error anywhere
+  [PASS] every Zabbix query of every page answered without error
+
+COMMAND CENTER UI ACCEPTANCE: 118 PASS, 0 FAIL

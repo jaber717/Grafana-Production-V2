@@ -1,0 +1,7 @@
+Zabbix API unreachable (test Zabbix stopped): every panel shows Grafana's error badge; the KPI tiles show '—', never 0 / healthy.
+KPI tiles read by the browser:
+Selected devices => —
+UP => —
+DOWN => —
+UNKNOWN => —
+High / Disaster problems => —

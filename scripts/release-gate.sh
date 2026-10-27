@@ -2,7 +2,7 @@
 # release-gate.sh — mandatory static pre-release checks (offline; touches no Grafana). Needs bash + Node >= 18.
 #   1 shell syntax   2 JS syntax   3 every JSON/YAML-free config parses   4 dashboards: unique uid, directory == folder uid, every
 #   datasource reference exists in config/datasources.json, no id/version baked in   5 plugins.txt covers the datasource types
-#   6 no secrets / forbidden files   7 inventory doc current   8 NetFlow generator reproduces the committed dashboards   9 VERSION == CHANGELOG
+#   6 no secrets / forbidden files   7 inventory doc current   8 NetFlow + NOC generators reproduce the committed dashboards   9 VERSION == CHANGELOG
 # Exit 0 = PASS. Anything that cannot run is reported SKIPPED, never PASS.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -59,7 +59,7 @@ HITS=$(files | grep -vE 'release-gate\.sh$' | xargs grep -InE "$PAT" 2>/dev/null
 echo "== 7-8. generated documents and generator"
 if command -v node >/dev/null; then
   node tools/inventory.mjs --check 2>&1 | sed 's/^/  /' && ok "dashboard inventory current" || bad "dashboard inventory out of date"
-  bash tests/check-generator.sh >/tmp/rg_gen 2>&1 && ok "NetFlow generator reproduces the committed dashboards" || { bad "generator check failed"; tail -3 /tmp/rg_gen; }
+  bash tests/check-generator.sh >/tmp/rg_gen 2>&1 && ok "NetFlow and NOC generators reproduce the committed dashboards" || { bad "generator check failed"; tail -3 /tmp/rg_gen; }
 else skip "inventory / generator (node missing)"; fi
 
 echo "== 9. version"

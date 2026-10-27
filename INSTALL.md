@@ -29,9 +29,10 @@ curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Gra
 ```
 
 **NOC dashboards**: choose Device Type, Device and Interfaces at the top of "NOC — Device Health"; nothing is configured per device
-([docs/NOC-DASHBOARDS.md](docs/NOC-DASHBOARDS.md)).
+([docs/NOC-DASHBOARDS.md](docs/NOC-DASHBOARDS.md)). **NOC — Command Center** is the wallboard for any set of devices
+([docs/NOC-COMMAND-CENTER.md](docs/NOC-COMMAND-CENTER.md)).
 
-**Dashboards missing, empty folders, or NOC dashboards saying "Zabbix not connected"?** Re-import all 7 into the running Grafana (no
+**Dashboards missing, empty folders, or NOC dashboards saying "Zabbix not connected"?** Re-import all 8 into the running Grafana (no
 reinstall, no restart). If Zabbix is not connected it asks for it first and offers a Zabbix data source that already exists in Grafana
 (used as is, never modified); asks the Zabbix host names of the routers if the item map is incomplete; shows what Grafana holds afterwards:
 

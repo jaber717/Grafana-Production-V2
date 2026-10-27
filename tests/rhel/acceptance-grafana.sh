@@ -77,7 +77,7 @@ expect_eq "no literal password in grafana.ini" "$(_ssh "$G" "sudo grep -ciE '^(a
 expect_match "firewalld admits the port only by source rule" "$(_ssh "$G" 'sudo firewall-cmd --list-rich-rules; sudo firewall-cmd --list-ports')" 'source address="192.168.1.0/24" port port="3000"'
 
 section "4. Content: dashboards, folders, datasources, playlist"
-expect_eq "7 dashboards with the original UIDs" "$(RG dash_uids)" "netflow-asn netflow-exporters netflow-health netflow-overview netflow-top-talkers noc-device-health noc-wan-overview"
+expect_eq "8 dashboards with the original UIDs (+ noc-command-center)" "$(RG dash_uids)" "netflow-asn netflow-exporters netflow-health netflow-overview netflow-top-talkers noc-command-center noc-device-health noc-wan-overview"
 expect_eq "2 folders" "$(RG folders)" "netflow noc"
 expect_eq "playlist" "$(RG playlists)" "NetFlow NOC Rotation"
 expect_eq "both datasources healthy (Zabbix mock + Akvorado ClickHouse over verified TLS)" "$(RG ds_status)" "zabbix-lab=OK netflow-clickhouse=OK "

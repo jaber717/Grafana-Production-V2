@@ -1,0 +1,2291 @@
+{
+  "uid": "noc-command-center",
+  "title": "NOC — Command Center",
+  "description": "NOC wallboard for any set of routers, switches and firewalls: choose Device Type and any number of Devices at the top (kept in the URL). Everything is read from Zabbix — host groups, hosts, item tags and names; nothing is hardcoded.",
+  "tags": [
+    "noc",
+    "netops",
+    "command-center"
+  ],
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "fiscalYearStartMonth": 0,
+  "liveNow": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "timezone": "browser",
+  "weekStart": "",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "devtype",
+        "label": "Device Type",
+        "type": "custom",
+        "hide": 0,
+        "query": "All : @@NOCQ_ALL@@,Router : @@NOCQ_ROUTER@@,Switch : @@NOCQ_SWITCH@@,Firewall : @@NOCQ_FIREWALL@@",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "@@NOC_ALL@@"
+        },
+        "options": [],
+        "multi": false,
+        "includeAll": false,
+        "skipUrlSync": false,
+        "description": "Zabbix host groups per device type (regex over group names); set once by 'install.sh --dashboards'"
+      },
+      {
+        "name": "device",
+        "label": "Devices",
+        "type": "query",
+        "datasource": {
+          "type": "alexanderzobnin-zabbix-datasource",
+          "uid": "zabbix-lab"
+        },
+        "hide": 0,
+        "query": {
+          "queryType": "host",
+          "group": "${devtype:raw}",
+          "host": "/.*/",
+          "application": "",
+          "itemTag": "",
+          "item": ""
+        },
+        "definition": "Zabbix hosts in the host groups of the selected Device Type",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false,
+        "description": "Any number of Zabbix hosts of the chosen type (type to search). All = every host of the type; kept in the URL."
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "NOC dashboards",
+      "type": "dashboards",
+      "tags": [
+        "noc"
+      ],
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Selected devices",
+      "description": "Devices in the fleet table (the current Device selection).",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 10,
+          "withTransforms": true
+        }
+      ],
+      "transformations": [],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "—",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^Device$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "UP",
+      "description": "Selected devices whose ICMP / SNMP / agent availability reports reachable.",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 10,
+          "withTransforms": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "Status",
+                "config": {
+                  "id": "greater",
+                  "options": {
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "—",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^Device$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "DOWN",
+      "description": "Selected devices that Zabbix reports unreachable (ICMP / SNMP / agent) and nothing reports reachable.",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 9,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 10,
+          "withTransforms": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "Status",
+                "config": {
+                  "id": "lower",
+                  "options": {
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "—",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^Device$/",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "UNKNOWN",
+      "description": "Selected devices with no availability answer: no ICMP/SNMP/agent item, 'unknown', or no data in the last 15m.",
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 14,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "datasource",
+            "uid": "-- Dashboard --"
+          },
+          "panelId": 10,
+          "withTransforms": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "Status",
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8e8e8e"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "—",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "count"
+          ],
+          "fields": "/^Device$/",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "High / Disaster problems",
+      "description": "Zabbix triggers in PROBLEM state with severity High or Disaster on the selected devices (monitored hosts, dependent triggers skipped).",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 19,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "4",
+          "countTriggersBy": "",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": ""
+          },
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "functions": [],
+          "options": {
+            "minSeverity": 4,
+            "acknowledged": 2,
+            "count": true,
+            "useTimeRange": false,
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false,
+            "hostsInMaintenance": false,
+            "hostProxy": false,
+            "limit": 1001,
+            "sortProblems": "default"
+          },
+          "showProblems": "problems",
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ],
+      "transformations": [],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "decimals": 0,
+          "noValue": "—",
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value",
+        "orientation": "auto",
+        "wideLayout": true,
+        "showPercentChange": false
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Fleet health — selected devices",
+      "description": "One row per selected device, DOWN first. Status: UP = ICMP ping, SNMP or Zabbix agent availability reports reachable; DOWN = they only report unreachable; UNKNOWN = no answer, 'unknown', or nothing reported in the last 15m. CPU / Memory: highest current value of the items tagged component: cpu / component: memory; — = not reported. Click a device to open NOC — Device Health. A device is listed when Zabbix has at least one of these items for it.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 13,
+        "x": 0,
+        "y": 4
+      },
+      "timeFrom": "15m",
+      "hideTimeOverride": true,
+      "targets": [
+        {
+          "refId": "ICMP",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^ICMP ping$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "101"
+              ],
+              "text": "scale(101)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "-1"
+              ],
+              "text": "offset(-1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "ICMP"
+              ],
+              "text": "setAlias(ICMP)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "SNMP",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^SNMP agent availability$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "removeAboveValue",
+                "category": "Filter",
+                "params": [
+                  {
+                    "name": "number",
+                    "type": "float"
+                  }
+                ],
+                "defaultParams": [
+                  0
+                ]
+              },
+              "params": [
+                "1"
+              ],
+              "text": "removeAboveValue(1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "101"
+              ],
+              "text": "scale(101)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "-1"
+              ],
+              "text": "offset(-1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "SNMP"
+              ],
+              "text": "setAlias(SNMP)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "AGENT",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^Zabbix agent availability$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "removeAboveValue",
+                "category": "Filter",
+                "params": [
+                  {
+                    "name": "number",
+                    "type": "float"
+                  }
+                ],
+                "defaultParams": [
+                  0
+                ]
+              },
+              "params": [
+                "1"
+              ],
+              "text": "removeAboveValue(1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "101"
+              ],
+              "text": "scale(101)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "-1"
+              ],
+              "text": "offset(-1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "Agent"
+              ],
+              "text": "setAlias(Agent)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "CPU",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: cpu"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage|load)/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "CPU"
+              ],
+              "text": "setAlias(CPU)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "MEM",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: memory"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage)/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "Memory"
+              ],
+              "text": "setAlias(Memory)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "T_ROUTER",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "@@NOC_ROUTER@@"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "0"
+              ],
+              "text": "scale(0)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "1"
+              ],
+              "text": "offset(1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "Type"
+              ],
+              "text": "setAlias(Type)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "T_SWITCH",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "@@NOC_SWITCH@@"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "0"
+              ],
+              "text": "scale(0)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "2"
+              ],
+              "text": "offset(2)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "Type"
+              ],
+              "text": "setAlias(Type)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "T_FIREWALL",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "@@NOC_FIREWALL@@"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "0"
+              ],
+              "text": "scale(0)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "3"
+              ],
+              "text": "offset(3)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "Type"
+              ],
+              "text": "setAlias(Type)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "mode": "seriesToRows",
+            "reducers": [
+              "last"
+            ],
+            "labelsToFields": true,
+            "includeTimeField": false
+          }
+        },
+        {
+          "id": "groupBy",
+          "options": {
+            "fields": {
+              "host": {
+                "operation": "groupby",
+                "aggregations": []
+              },
+              "Field": {
+                "operation": "groupby",
+                "aggregations": []
+              },
+              "Last": {
+                "operation": "aggregate",
+                "aggregations": [
+                  "max"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "Field",
+            "rowField": "host",
+            "valueField": "Last (max)",
+            "emptyValue": "null"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "ICMP",
+                "SNMP",
+                "Agent"
+              ],
+              "reducer": "sum"
+            },
+            "alias": "Status",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Status",
+                "desc": false
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "ICMP": true,
+              "SNMP": true,
+              "Agent": true
+            },
+            "indexByName": {
+              "host\\Field": 0,
+              "Type": 1,
+              "Status": 2,
+              "CPU": 3,
+              "Memory": 4
+            },
+            "renameByName": {
+              "host\\Field": "Device"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "filterable": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Device"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 180
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open ${__value.raw} in NOC — Device Health",
+                    "url": "/d/noc-device-health/noc-device-health?orgId=1&${devtype:queryparam}&var-device=${__value.raw:percentencode}&var-interface=$__all"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Type"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "Router",
+                        "index": 0
+                      },
+                      "2": {
+                        "text": "Switch",
+                        "index": 1
+                      },
+                      "3": {
+                        "text": "Firewall",
+                        "index": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null+nan",
+                      "result": {
+                        "text": "—",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": -1000000000.0,
+                      "to": -0.5,
+                      "result": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "UNKNOWN",
+                        "color": "#8e8e8e",
+                        "index": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "range",
+                    "options": {
+                      "from": 0.5,
+                      "to": 1000000000.0,
+                      "result": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 2
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null+nan",
+                      "result": {
+                        "text": "UNKNOWN",
+                        "color": "#8e8e8e",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null+nan",
+                      "result": {
+                        "text": "—",
+                        "color": "#8e8e8e",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null+nan",
+                      "result": {
+                        "text": "—",
+                        "color": "#8e8e8e",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        },
+        "sortBy": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "alexanderzobnin-zabbix-triggers-panel",
+      "title": "Active problems — selected devices",
+      "description": "Zabbix problems of the selected devices, newest first (Zabbix plugin Problems panel). Acknowledged problems are marked.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 11,
+        "x": 13,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "5",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": ""
+          },
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "functions": [],
+          "showProblems": "problems",
+          "evaltype": "0",
+          "options": {
+            "minSeverity": 0,
+            "acknowledged": 2,
+            "count": false,
+            "useTimeRange": false,
+            "hostsInMaintenance": false,
+            "hostProxy": false,
+            "limit": 200,
+            "sortProblems": "default",
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": false,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ],
+      "options": {
+        "schemaVersion": 8,
+        "layout": "table",
+        "fontSize": "100%",
+        "pageSize": 12,
+        "sortProblems": "lastchange",
+        "hostField": true,
+        "hostTechNameField": false,
+        "hostIpField": false,
+        "hostProxy": false,
+        "hostGroups": false,
+        "showTags": false,
+        "statusField": false,
+        "statusIcon": false,
+        "severityField": true,
+        "ackField": true,
+        "ageField": true,
+        "opdataField": false,
+        "descriptionField": false,
+        "descriptionAtNewLine": false,
+        "showDatasourceName": false,
+        "showSearchFilter": false,
+        "problemTimeline": false,
+        "highlightBackground": false,
+        "highlightNewEvents": true,
+        "highlightNewerThan": "15m",
+        "customLastChangeFormat": true,
+        "lastChangeFormat": "DD MMM HH:mm",
+        "resizedColumns": [
+          {
+            "id": "host",
+            "value": 140
+          },
+          {
+            "id": "priority",
+            "value": 90
+          },
+          {
+            "id": "acknowledged",
+            "value": 45
+          },
+          {
+            "id": "age",
+            "value": 85
+          },
+          {
+            "id": "lastchange",
+            "value": 105
+          }
+        ],
+        "allowDangerousHTML": false,
+        "markAckEvents": false,
+        "okEventColor": "rgb(56, 189, 113)",
+        "ackEventColor": "rgb(56, 219, 156)",
+        "triggerSeverity": [
+          {
+            "priority": 0,
+            "severity": "Not classified",
+            "color": "rgb(108, 108, 108)",
+            "show": true
+          },
+          {
+            "priority": 1,
+            "severity": "Information",
+            "color": "rgb(120, 158, 183)",
+            "show": true
+          },
+          {
+            "priority": 2,
+            "severity": "Warning",
+            "color": "rgb(175, 180, 36)",
+            "show": true
+          },
+          {
+            "priority": 3,
+            "severity": "Average",
+            "color": "rgb(255, 137, 30)",
+            "show": true
+          },
+          {
+            "priority": 4,
+            "severity": "High",
+            "color": "rgb(255, 101, 72)",
+            "show": true
+          },
+          {
+            "priority": 5,
+            "severity": "Disaster",
+            "color": "rgb(215, 0, 0)",
+            "show": true
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "CPU utilization — top 10 of the selected devices",
+      "description": "The 10 highest CPU series (peak in the time range) among the selected devices: items tagged component: cpu, one line per CPU / engine / plane. Legend sorted by current value.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: cpu"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage|load)/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "top",
+                "category": "Filter",
+                "params": [
+                  {
+                    "name": "number",
+                    "type": "int"
+                  },
+                  {
+                    "name": "value",
+                    "type": "string",
+                    "options": [
+                      "avg",
+                      "min",
+                      "max",
+                      "sum",
+                      "count",
+                      "median",
+                      "first",
+                      "last"
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  5,
+                  "avg"
+                ]
+              },
+              "params": [
+                "10",
+                "max"
+              ],
+              "text": "top(10, max)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true,
+          "width": 330
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Memory utilization — top 10 of the selected devices",
+      "description": "The 10 highest memory series (peak in the time range) among the selected devices: items tagged component: memory. Legend sorted by current value.",
+      "datasource": {
+        "type": "alexanderzobnin-zabbix-datasource",
+        "uid": "zabbix-lab"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": "component: memory"
+          },
+          "item": {
+            "filter": "/(utili[sz]ation|usage)/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "top",
+                "category": "Filter",
+                "params": [
+                  {
+                    "name": "number",
+                    "type": "int"
+                  },
+                  {
+                    "name": "value",
+                    "type": "string",
+                    "options": [
+                      "avg",
+                      "min",
+                      "max",
+                      "sum",
+                      "count",
+                      "median",
+                      "first",
+                      "last"
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  5,
+                  "avg"
+                ]
+              },
+              "params": [
+                "10",
+                "max"
+              ],
+              "text": "top(10, max)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true,
+          "width": 330
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

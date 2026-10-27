@@ -1,0 +1,32 @@
+== 1. shell syntax
+[PASS] 30 shell scripts checked
+== 2. JavaScript syntax
+[PASS] 22 .mjs files checked
+== 3-5. content consistency
+[PASS] 8 dashboards, 2 datasources, 1 playlist(s) consistent
+== 6. secrets and forbidden files
+[PASS] no .env / key / database / log / archive / backup files tracked
+[PASS] no file larger than 1 MiB
+[PASS] no credential-like literal
+== 7-8. generated documents and generator
+  dashboard inventory is current
+[PASS] dashboard inventory current
+[PASS] NetFlow and NOC generators reproduce the committed dashboards
+== 9. version
+[PASS] VERSION 2.4.0 has a CHANGELOG entry
+== 10. unit tests
+[PASS] unit tests pass (28)
+== 11. production environment template and pins
+[PASS] env/production.env.example has no LAB addresses
+[PASS] env/production.env.example carries no secrets
+[PASS] vendored Grafana RPM key fingerprint equals the pin (B53AE77BADB630A683046005963FA27710458545)
+[PASS] every plugin has a pinned SHA-256
+[PASS] Grafana RPM SHA-256 pinned
+[PASS] required documents present
+== 12. release 2.0: environment parser, shell lint, simulated RHEL host
+[PASS] lib/envparse.py, lib/probe.py compile
+[PASS] env/production.env.example is valid for the parser
+[SKIPPED] shellcheck not installed
+[PASS] simulated RHEL 9.8 host: 89 PASS, 0 FAIL, 1 isolation check  (SIMULATION ONLY)
+
+RELEASE GATE: PASS (1 skipped)

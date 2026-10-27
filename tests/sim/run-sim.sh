@@ -245,7 +245,7 @@ check "plugins extracted from the bundle after SHA-256 check" 'out_has "plugin a
 check "Zabbix datasource created over HTTP and its health check logs in for real" 'out_has "created +datasource zabbix-lab" && out_has "health: OK Zabbix API login OK"'
 check "ClickHouse datasource and playlist skipped; the 5 NetFlow dashboards ARE deployed, each with a notice panel" 'out_has "skipped +datasource netflow-clickhouse" && out_has "note +netflow-overview: deployed with a notice panel" && out_has "skipped +playlist" && has_notice mgf netflow-overview'
 check "NOC dashboards deployed complete WITHOUT any item map: no notice, no item id, Device Type/Device/Interface variables" 'out_has "created +dashboard noc-device-health" && ! has_notice mgf noc-device-health && no_item_ids mgf noc-device-health && no_item_ids mgf noc-wan-overview && mgf /api/dashboards/uid/noc-device-health | grep -q "\"queryType\":\"itemTag\""'
-check "mock Grafana holds 1 datasource and all 7 dashboards (no empty folder)" '[ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && mgf /api/datasources/uid/zabbix-lab | grep -q "\"url\":\"$ZBX_URL\"" && [ "$(mgf /api/datasources/uid/netflow-clickhouse | grep -c uid)" = 0 ]'
+check "mock Grafana holds 1 datasource and all 8 dashboards (no empty folder)" '[ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ] && mgf /api/datasources/uid/zabbix-lab | grep -q "\"url\":\"$ZBX_URL\"" && [ "$(mgf /api/datasources/uid/netflow-clickhouse | grep -c uid)" = 0 ]'
 check "release deployed with its bundle; command linked" '[ -L /usr/local/sbin/grafana-platform ] && [ -f "$W/sys/opt/grafana-platform/releases/$VER/bundle/SHA256SUMS" ]'
 check "the bundled RPM is cached for rollbacks" 'ls "$W/sys/backups/rpm/"grafana-*.rpm >/dev/null 2>&1'
 
@@ -259,7 +259,7 @@ check "item map file 0640 and only numeric ids" '[ "$(stat -c %a "$W/sys/etc/gra
 check "only read-only Zabbix methods were called" 'curl -s "http://127.0.0.1:$ZBX_PORT/__calls" | python3 -c "import json,sys;c=set(json.load(sys.stdin));assert c<= {\"apiinfo.version\",\"user.login\",\"user.logout\",\"host.get\",\"item.get\"},c"'
 gp config set ALLOW_NOC_WITHOUT_ITEM_MAP=no
 gp apply; rc=$?
-check "apply keeps the 2 NOC dashboards complete (rc=$rc)" '[ $rc = 0 ] && out_has "(created|updated|unchanged) +dashboard noc-device-health" && out_has "(created|updated|unchanged) +dashboard noc-wan-overview" && ! has_notice mgf noc-device-health && ! has_notice mgf noc-wan-overview'
+check "apply keeps the 3 NOC dashboards complete (rc=$rc)" '[ $rc = 0 ] && out_has "(created|updated|unchanged) +dashboard noc-device-health" && out_has "(created|updated|unchanged) +dashboard noc-wan-overview" && out_has "(created|updated|unchanged) +dashboard noc-command-center" && ! has_notice mgf noc-device-health && ! has_notice mgf noc-wan-overview && ! has_notice mgf noc-command-center'
 check "the legacy item map does not touch the NOC dashboards: no item id in them" 'no_item_ids mgf noc-device-health && no_item_ids mgf noc-wan-overview'
 check "verify after apply: no FAIL" 'out_has "APPLY: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
 
@@ -290,7 +290,7 @@ gp preflight --env-file "$ENVF"; rc=$?
 check "a partial LAB item map no longer blocks anything, even with ALLOW_NOC_WITHOUT_ITEM_MAP=no (rc=$rc)" '[ $rc = 0 ] && out_lacks "item map misses"'
 gp config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes --env-file "$ENVF"
 gp install --env-file "$ENVF"; rc=$?
-check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards complete, no item id (rc=$rc)" '[ $rc = 0 ] && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ] && ! has_notice mgf noc-wan-overview && no_item_ids mgf noc-wan-overview'
+check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards complete, no item id (rc=$rc)" '[ $rc = 0 ] && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ] && ! has_notice mgf noc-wan-overview && no_item_ids mgf noc-wan-overview'
 
 section "2.0 repo mode on an isolated host: one FAIL, with the way out"
 reset_host
@@ -328,8 +328,8 @@ check "the offline archive next to the clone was found, verified against the pin
 check "the Zabbix URL got /api_jsonrpc.php appended, HTTP was allowed only after the explicit question" 'grep -q "^ZABBIX_URL=$ZBX_URL$" /etc/grafana-platform/platform.env && grep -q "^ALLOW_INSECURE_DATASOURCES=yes$" /etc/grafana-platform/platform.env && out_has "uses plain HTTP: its password crosses the network unencrypted"'
 check "a wrong Zabbix password is caught BEFORE installing and asked again" 'out_has "login as $ZBX_USER failed" && out_has "testing login ... OK \(Zabbix 7.0.30"'
 check "Grafana HTTP chosen explicitly; no configuration file edited by hand" 'grep -q "^GRAFANA_PROTOCOL=http$" /etc/grafana-platform/platform.env && grep -q "^GRAFANA_ALLOW_INSECURE_HTTP=yes$" /etc/grafana-platform/platform.env'
-check "Device Type step: host groups read from Zabbix, WAN Routers = Router, the types without a group asked; NOC complete" 'out_has "Router   : WAN Routers \(7 hosts\)" && out_has "Switch   : \(no host group\)" && out_has "Host groups for Firewall" && out_lacks "LAB router names" && out_has "Zabbix: connected" && out_has "NOC: 2 of 2 dashboards in Grafana, complete"'
-check "ClickHouse skipped without blocking anything; NetFlow dashboards present with a notice" 'out_has "ClickHouse: not connected -> add it with" && [ "$(count /api/search)" = 7 ] && has_notice mgf2 netflow-overview && ! has_notice mgf2 noc-device-health'
+check "Device Type step: host groups read from Zabbix, WAN Routers = Router, the types without a group asked; NOC complete" 'out_has "Router   : WAN Routers \(7 hosts\)" && out_has "Switch   : \(no host group\)" && out_has "Host groups for Firewall" && out_lacks "LAB router names" && out_has "Zabbix: connected" && out_has "NOC: 3 of 3 dashboards in Grafana, complete"'
+check "ClickHouse skipped without blocking anything; NetFlow dashboards present with a notice" 'out_has "ClickHouse: not connected -> add it with" && [ "$(count /api/search)" = 8 ] && has_notice mgf2 netflow-overview && ! has_notice mgf2 noc-device-health'
 check "secrets: mode 600, never in the output or logs" '[ "$(stat -c %a /etc/grafana-platform/secrets/zabbix-password)" = 600 ] && ! grep -rqF -e "$(cat "$W/zbx.pw")" -e "$(cat "$W/admin.pw")" -e wrong-password "$W/out" "$W/sys/var/log" 2>/dev/null'
 check "the admin password typed during setup is the one Grafana accepts" '[ "$(curl -s -o /dev/null -w "%{http_code}" -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/folders)" = 200 ]'
 n_q=$(grep -c "(answered)\|(hidden)" "$W/out.screen"); check "number of questions on a first install: $n_q (incl. 1 retry and the 3 Device Type lines)" '[ "$n_q" -le 16 ]'
@@ -345,7 +345,7 @@ check "--yes re-run asks nothing and changes nothing (rc=$rc)" '[ $rc = 0 ] && o
 section "Add ClickHouse later: sudo ./install.sh --clickhouse"
 { echo y; echo 127.0.0.1; echo; echo "$CH_PORT"; echo; cat "$W/ch.pw"; echo; } > "$W/answers"
 setup --clickhouse; rc=$?
-check "--clickhouse adds the datasource, 5 NetFlow dashboards and the playlist (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource netflow-clickhouse" && [ "$(count /api/search)" = 7 ] && ! has_notice mgf2 netflow-overview && out_has "updated +dashboard netflow-overview" && [ "$(count /api/playlists)" = 1 ] && out_has "health: OK ClickHouse"'
+check "--clickhouse adds the datasource, 5 NetFlow dashboards and the playlist (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource netflow-clickhouse" && [ "$(count /api/search)" = 8 ] && ! has_notice mgf2 netflow-overview && out_has "updated +dashboard netflow-overview" && [ "$(count /api/playlists)" = 1 ] && out_has "health: OK ClickHouse"'
 check "the earlier HTTP permission is reused, not asked again" 'out_lacks "Allow unencrypted"'
 
 section "Base Grafana without any integration, Zabbix added afterwards"
@@ -353,11 +353,11 @@ reset_host; rm -rf /etc/grafana-platform /var/backups/* "$CLONE/bundle"
 { echo 10.20.8.27; echo 10.0.0.0/8; echo http; echo n; echo n; echo; } > "$W/answers"
 setup; rc=$?
 cp /etc/grafana-platform/secrets/admin-password "$W/admin.pw" 2>/dev/null
-check "Grafana installs with Zabbix AND ClickHouse not connected (rc=$rc)" '[ $rc = 0 ] && out_has "Zabbix: not connected" && [ "$(count /api/search)" = 7 ] && has_notice mgf2 noc-device-health && no_lab_ids mgf2 noc-device-health && [ "$(mgf2 /api/datasources/uid/zabbix-lab | grep -c "\"uid\"")" = 0 ]'
+check "Grafana installs with Zabbix AND ClickHouse not connected (rc=$rc)" '[ $rc = 0 ] && out_has "Zabbix: not connected" && [ "$(count /api/search)" = 8 ] && has_notice mgf2 noc-device-health && no_lab_ids mgf2 noc-device-health && [ "$(mgf2 /api/datasources/uid/zabbix-lab | grep -c "\"uid\"")" = 0 ]'
 check "generated admin password: path shown, value not printed" 'out_has "password stored in /etc/grafana-platform/secrets/admin-password" && ! grep -qF "$(cat "$W/admin.pw")" "$W/out"'
 { echo y; echo "http://127.0.0.1:$ZBX_PORT"; echo y; echo "$ZBX_USER"; cat "$W/zbx.pw"; echo; echo; for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
 setup --zabbix; rc=$?
-check "--zabbix later: datasource + NOC dashboards (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource zabbix-lab" && [ "$(count /api/search)" = 7 ] && ! has_notice mgf2 noc-device-health'
+check "--zabbix later: datasource + NOC dashboards (rc=$rc)" '[ $rc = 0 ] && out_has "created +datasource zabbix-lab" && [ "$(count /api/search)" = 8 ] && ! has_notice mgf2 noc-device-health'
 
 section "Safety: no package anywhere -> stops before changing anything; tampered archive refused; pinned download works"
 reset_host; rm -rf /etc/grafana-platform "$CLONE/bundle" "$W/clone"/grafana-platform-*-offline.tar.gz
@@ -385,7 +385,7 @@ cp "$SRC_ARCH" "$W/clone/"
   echo y; echo 127.0.0.1; echo; echo "$CH_PORT"; echo; cat "$W/ch.pw"; echo; cat "$W/admin.pw"; echo; echo
   for h in SITE-A SITE-B STC MOBILY INT-CORE SAIX-A SAIX-B; do echo "RYD-$h"; done; } > "$W/answers"
 setup; rc=$?
-check "everything in ONE run: Zabbix + ClickHouse + NOC + NetFlow (rc=$rc)" '[ $rc = 0 ] && [ "$(count /api/search)" = 7 ] && out_has "ClickHouse: connected"'
+check "everything in ONE run: Zabbix + ClickHouse + NOC + NetFlow (rc=$rc)" '[ $rc = 0 ] && [ "$(count /api/search)" = 8 ] && out_has "ClickHouse: connected"'
 REL=$CLONE
 
 section "Rollback: uninstall keeps configuration/secrets/data, reinstall restores the same state, --purge returns a clean host"
@@ -396,7 +396,7 @@ check "package, service, firewall rules, release and command link are gone" '! g
 check "configuration and secrets are kept" '[ -f /etc/grafana-platform/platform.env ] && [ -f /etc/grafana-platform/secrets/zabbix-password ]'
 dgp bin/grafana-platform install; rc=$?
 check "reinstall from the unpacked release with the kept configuration (rc=$rc), no prompts, no --env-file" '[ $rc = 0 ] && out_has "INSTALL: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
-check "reinstalled state is complete again: 7 dashboards" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 7 ]'
+check "reinstalled state is complete again: 8 dashboards" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ]'
 dgp grafana-platform uninstall --yes --purge; rc=$?
 check "uninstall --purge (rc=$rc) removes configuration, secrets and data" '[ $rc = 0 ] && [ ! -e /etc/grafana-platform ] && [ ! -e "$W/sys/var/lib/grafana" ] && [ ! -e "$W/sys/etc/grafana" ]'
 

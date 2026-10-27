@@ -1,0 +1,25 @@
+### Pieces source: reuse of an interrupted 190 MiB download
+  [PASS] 190 MiB partial (named like a complete archive) is NOT treated as a broken archive: no stop
+  [PASS] pieces reused from it (Node.js, both plugins, first 149.6 MB of the RPM)
+  [PASS] only the missing pieces are fetched (694 of 1717)
+  [PASS] joined packages equal the pins
+  [PASS] the partial file itself is unchanged
+### Pieces source: damaged partial (bytes overwritten in the middle, garbage appended)
+  [PASS] nothing unverified is used: packages equal the pins
+  [PASS] only the pieces hit by the damage are dropped (reused 1022, fetched 695); fetched = 1717 - reused
+### Pieces source: connection cuts, retries, a re-run after a failure
+  [PASS] every piece cut twice, third attempt succeeds: packages equal the pins
+  [PASS] a piece with wrong content is refused after 5 attempts; nothing installed; clear message
+  [PASS] the verified pieces are kept for the next run (932)
+  [PASS] re-run fetches only the 785 missing pieces and completes
+### Single-archive source (release asset): resume with byte ranges
+  [PASS] connection closed after 190 MiB (curl 18) -> resumed with Range, 206 validated, completed
+  [PASS] exactly 2 requests: no data downloaded twice
+  [PASS] existing 190 MiB .part is continued, not restarted
+  [PASS] server ignores Range (200): nothing appended, partial kept at 190 MiB, clear message
+  [PASS] 206 starting at the wrong byte: refused, partial kept
+  [PASS] tampered archive: SHA-256 mismatch, refused, kept as .rejected, nothing installed
+  [PASS] no Range support at all + cut at 190 MiB: the 1-byte probe does not stream the file; the 190 MiB are kept, nothing appended, clear message
+  [PASS] server keeps cutting (6 attempts, 1 MB each): stops with the size reached, partial kept
+
+DOWNLOAD TESTS: 19 PASS, 0 FAIL

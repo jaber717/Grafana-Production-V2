@@ -1,0 +1,16 @@
+{
+  "_comment": "What NOC — Command Center must show for the data of tests/noc/zabbix7-api.mjs --fleet with the default Device Type groups (/router|rtr/i, /switch/i, /firewall/i; 'Network/WAN Edge' is not mapped, so its 2 routers are not offered).",
+  "types": {
+    "Router": ["JED-RTR-01", "JED-RTR-02", "JED-RTR-03", "JED-RTR-04", "RYD-RTR-01", "RYD-RTR-02"],
+    "Switch": ["JED-ACC-SW-01", "JED-ACC-SW-02", "JED-ACC-SW-03", "JED-ACC-SW-04", "JED-ACC-SW-05", "JED-CORE-SW-01", "JED-CORE-SW-02", "RYD-ACC-SW-07", "RYD-CORE-SW-01"],
+    "Firewall": ["JED-FW-01", "JED-FW-02", "JED-FW-03", "JED-FW-04", "JED-FW-05", "RYD-FW-01", "RYD-FW-02"]
+  },
+  "never": ["ryd-app-01", "RYD-EDGE-01", "JED-EDGE-01"],
+  "status": {"RYD-FW-02": "DOWN", "JED-RTR-04": "DOWN", "JED-ACC-SW-03": "UNKNOWN"},
+  "no_cpu_mem": ["RYD-FW-02", "JED-RTR-04", "JED-FW-02"],
+  "high_disaster": {"RYD-FW-02": 1, "JED-RTR-04": 1, "JED-FW-05": 1},
+  "problems": {"RYD-FW-02": 2, "RYD-CORE-SW-01": 1, "RYD-RTR-02": 1, "RYD-FW-01": 1, "JED-RTR-04": 1, "JED-RTR-03": 1, "JED-ACC-SW-04": 1, "JED-CORE-SW-01": 1, "JED-FW-05": 1},
+  "nine": ["RYD-RTR-01", "JED-RTR-03", "JED-RTR-04", "RYD-CORE-SW-01", "JED-ACC-SW-03", "JED-ACC-SW-05", "RYD-FW-02", "JED-FW-02", "JED-FW-05"],
+  "agent_monitored": "JED-FW-03",
+  "one": "JED-ACC-SW-03"
+}
