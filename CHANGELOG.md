@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.5.0] - 2026-10-27
+
+**NOC — Command Center: status, CPU/memory and sorting fixed** (same dashboard, uid `noc-command-center`; no other dashboard, data source or
+credential changes). Operator guide: [docs/NOC-COMMAND-CENTER.md](docs/NOC-COMMAND-CENTER.md).
+
+### Fixed
+* **Every device UNKNOWN with "Value = 100"** (2.4.0). Root cause: the table named each availability series by its *field name*; the Zabbix
+  plugin 6.8.0 only sets that name when all series share their first two timestamps (never on a real server: each item has its own poll phase,
+  and polls are missed), otherwise every field is called "Value" and the host/role live only in a display name. The pivot had no ICMP / SNMP /
+  Agent columns to sum (UNKNOWN) and the only number left was the transformed ICMP sample 1 × 101 − 1 = 100. 2.5.0 carries host and role in each
+  series' alias, takes the last sample per series and builds the status per host, independent of timestamp alignment.
+* **Status rules** (new, documented): last 10 minutes only; ICMP ±100, SNMP availability ±10, agent availability ±1, "unknown" ignored;
+  sum > 0 UP, < 0 DOWN, else UNKNOWN. Missing/stale data is UNKNOWN (never UP), ICMP is not assumed, CPU/memory data never makes a device UP.
+* **CPU / Memory "No data" and unrelated items**: the tag-dependent, broad-regex queries (`utilization|usage|load`) are replaced by anchored
+  item-name tiers (utilization → idle/free inverted), highest value per device, per-core/temperature/fan/bytes never selected, values outside
+  0–100 discarded, missing = `N/A` (never 0). Works for untagged templates (e.g. Gigamon).
+* **HTTP 500** (`request failed, status: 500`, a PHP failure on the Zabbix frontend): the dashboard now issues one shared `item.get` instead of six
+  (100 devices on the test stand-in: 27 000 items / 6 calls → 13 120 items / 3 calls). The exact server-side cause cannot be proven without the
+  Zabbix frontend log; what to look for, and the PHP `memory_limit` remedy, are in the guide.
+
+### Changed
+* Fleet table: columns Device, Type, Status, CPU, Memory; sorted DOWN → UNKNOWN → UP in the query pipeline (stays correct after refresh and
+  selection changes); the device name still opens NOC — Device Health. Missing metric text `—` → `N/A`.
+
+### Tested (test VM + SIMULATED Zabbix 7.0 API — not a real Zabbix server, not production)
+* Real Grafana 13.2.3 + Zabbix plugin 6.8.0 on AlmaLinux 9.8: matrix of 26 devices (ICMP/SNMP/agent up/down/unknown, stale, conflicting, 9
+  vendor naming/unit variants, missing metrics), 9 / 30 / 100 selected devices, selection change, auto-refresh, realistic poll phases:
+  see [docs/evidence/command-center-2.5.0/](docs/evidence/command-center-2.5.0/).
+
+### Unchanged
+* `noc-device-health`, `noc-wan-overview`, the NetFlow dashboards, data sources, credentials, Grafana itself (not reinstalled or restarted).
+
 ## [2.4.0] - 2026-10-27
 
 **New dashboard "NOC — Command Center"** (uid `noc-command-center`, folder NOC): the NOC wallboard for any number of routers, switches

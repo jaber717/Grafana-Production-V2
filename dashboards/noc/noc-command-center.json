@@ -343,7 +343,7 @@
       "id": 4,
       "type": "stat",
       "title": "UNKNOWN",
-      "description": "Selected devices with no availability answer: no ICMP/SNMP/agent item, 'unknown', or no data in the last 15m.",
+      "description": "Selected devices with no availability answer: no ICMP/SNMP/agent item, 'unknown', or no data in the last 10m.",
       "datasource": {
         "type": "datasource",
         "uid": "-- Dashboard --"
@@ -541,7 +541,7 @@
       "id": 10,
       "type": "table",
       "title": "Fleet health — selected devices",
-      "description": "One row per selected device, DOWN first. Status: UP = ICMP ping, SNMP or Zabbix agent availability reports reachable; DOWN = they only report unreachable; UNKNOWN = no answer, 'unknown', or nothing reported in the last 15m. CPU / Memory: highest current value of the items tagged component: cpu / component: memory; — = not reported. Click a device to open NOC — Device Health. A device is listed when Zabbix has at least one of these items for it.",
+      "description": "One row per selected device, DOWN first, then UNKNOWN, then UP. Status: the strongest fresh signal decides - ICMP ping, else SNMP availability, else Zabbix agent availability (1 = UP, 0 = DOWN); a signal that says 'unknown' or has no sample in the last 10m is ignored; no usable signal = UNKNOWN. CPU / Memory: utilization percentage (0-100) of the device's CPU / memory items, tier 1 'utilization / usage', tier 2 'idle' / 'free' inverted; several items (CPU boards, memory pools) -> the highest; N/A = no such item or no sample. Click a device to open NOC — Device Health.",
       "datasource": {
         "type": "alexanderzobnin-zabbix-datasource",
         "uid": "zabbix-lab"
@@ -552,11 +552,11 @@
         "x": 0,
         "y": 4
       },
-      "timeFrom": "15m",
+      "timeFrom": "10m",
       "hideTimeOverride": true,
       "targets": [
         {
-          "refId": "ICMP",
+          "refId": "AVI",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -599,9 +599,9 @@
                 ]
               },
               "params": [
-                "101"
+                "200"
               ],
-              "text": "scale(101)",
+              "text": "scale(200)",
               "added": false
             },
             {
@@ -623,9 +623,9 @@
                 ]
               },
               "params": [
-                "-1"
+                "-100"
               ],
-              "text": "offset(-1)",
+              "text": "offset(-100)",
               "added": false
             },
             {
@@ -641,9 +641,9 @@
                 "defaultParams": []
               },
               "params": [
-                "ICMP"
+                "AVI␟$__zbx_host_name"
               ],
-              "text": "setAlias(ICMP)",
+              "text": "setAlias(AVI␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -670,7 +670,7 @@
           }
         },
         {
-          "refId": "SNMP",
+          "refId": "AVS",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -733,9 +733,9 @@
                 ]
               },
               "params": [
-                "101"
+                "20"
               ],
-              "text": "scale(101)",
+              "text": "scale(20)",
               "added": false
             },
             {
@@ -757,9 +757,9 @@
                 ]
               },
               "params": [
-                "-1"
+                "-10"
               ],
-              "text": "offset(-1)",
+              "text": "offset(-10)",
               "added": false
             },
             {
@@ -775,9 +775,9 @@
                 "defaultParams": []
               },
               "params": [
-                "SNMP"
+                "AVS␟$__zbx_host_name"
               ],
-              "text": "setAlias(SNMP)",
+              "text": "setAlias(AVS␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -804,7 +804,7 @@
           }
         },
         {
-          "refId": "AGENT",
+          "refId": "AVA",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -867,9 +867,9 @@
                 ]
               },
               "params": [
-                "101"
+                "2"
               ],
-              "text": "scale(101)",
+              "text": "scale(2)",
               "added": false
             },
             {
@@ -909,9 +909,9 @@
                 "defaultParams": []
               },
               "params": [
-                "Agent"
+                "AVA␟$__zbx_host_name"
               ],
-              "text": "setAlias(Agent)",
+              "text": "setAlias(AVA␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -938,135 +938,7 @@
           }
         },
         {
-          "refId": "CPU",
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "queryType": "0",
-          "group": {
-            "filter": "${devtype:raw}"
-          },
-          "host": {
-            "filter": "$device"
-          },
-          "application": {
-            "filter": ""
-          },
-          "itemTag": {
-            "filter": "component: cpu"
-          },
-          "item": {
-            "filter": "/(utili[sz]ation|usage|load)/i"
-          },
-          "functions": [
-            {
-              "def": {
-                "name": "setAlias",
-                "category": "Alias",
-                "params": [
-                  {
-                    "name": "alias",
-                    "type": "string"
-                  }
-                ],
-                "defaultParams": []
-              },
-              "params": [
-                "CPU"
-              ],
-              "text": "setAlias(CPU)",
-              "added": false
-            }
-          ],
-          "proxy": {
-            "filter": ""
-          },
-          "trigger": {
-            "filter": ""
-          },
-          "tags": {
-            "filter": ""
-          },
-          "macro": {
-            "filter": ""
-          },
-          "options": {
-            "showDisabledItems": false,
-            "skipEmptyValues": false,
-            "disableDataAlignment": true,
-            "useZabbixValueMapping": false
-          },
-          "table": {
-            "skipEmptyValues": false
-          }
-        },
-        {
-          "refId": "MEM",
-          "datasource": {
-            "type": "alexanderzobnin-zabbix-datasource",
-            "uid": "zabbix-lab"
-          },
-          "queryType": "0",
-          "group": {
-            "filter": "${devtype:raw}"
-          },
-          "host": {
-            "filter": "$device"
-          },
-          "application": {
-            "filter": ""
-          },
-          "itemTag": {
-            "filter": "component: memory"
-          },
-          "item": {
-            "filter": "/(utili[sz]ation|usage)/i"
-          },
-          "functions": [
-            {
-              "def": {
-                "name": "setAlias",
-                "category": "Alias",
-                "params": [
-                  {
-                    "name": "alias",
-                    "type": "string"
-                  }
-                ],
-                "defaultParams": []
-              },
-              "params": [
-                "Memory"
-              ],
-              "text": "setAlias(Memory)",
-              "added": false
-            }
-          ],
-          "proxy": {
-            "filter": ""
-          },
-          "trigger": {
-            "filter": ""
-          },
-          "tags": {
-            "filter": ""
-          },
-          "macro": {
-            "filter": ""
-          },
-          "options": {
-            "showDisabledItems": false,
-            "skipEmptyValues": false,
-            "disableDataAlignment": true,
-            "useZabbixValueMapping": false
-          },
-          "table": {
-            "skipEmptyValues": false
-          }
-        },
-        {
-          "refId": "T_ROUTER",
+          "refId": "TR",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -1082,7 +954,7 @@
             "filter": ""
           },
           "itemTag": {
-            "filter": ""
+            "filter": "component: health, component: network"
           },
           "item": {
             "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
@@ -1151,9 +1023,9 @@
                 "defaultParams": []
               },
               "params": [
-                "Type"
+                "TYP␟$__zbx_host_name"
               ],
-              "text": "setAlias(Type)",
+              "text": "setAlias(TYP␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -1180,7 +1052,7 @@
           }
         },
         {
-          "refId": "T_SWITCH",
+          "refId": "TS",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -1196,7 +1068,7 @@
             "filter": ""
           },
           "itemTag": {
-            "filter": ""
+            "filter": "component: health, component: network"
           },
           "item": {
             "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
@@ -1265,9 +1137,9 @@
                 "defaultParams": []
               },
               "params": [
-                "Type"
+                "TYP␟$__zbx_host_name"
               ],
-              "text": "setAlias(Type)",
+              "text": "setAlias(TYP␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -1294,7 +1166,7 @@
           }
         },
         {
-          "refId": "T_FIREWALL",
+          "refId": "TF",
           "datasource": {
             "type": "alexanderzobnin-zabbix-datasource",
             "uid": "zabbix-lab"
@@ -1310,7 +1182,7 @@
             "filter": ""
           },
           "itemTag": {
-            "filter": ""
+            "filter": "component: health, component: network"
           },
           "item": {
             "filter": "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
@@ -1379,9 +1251,365 @@
                 "defaultParams": []
               },
               "params": [
-                "Type"
+                "TYP␟$__zbx_host_name"
               ],
-              "text": "setAlias(Type)",
+              "text": "setAlias(TYP␟$__zbx_host_name)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "QC1",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:CPU|Processor)(?: total)? (?:utili[sz]ation|usage)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)?$/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "C1␟$__zbx_host_name"
+              ],
+              "text": "setAlias(C1␟$__zbx_host_name)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "QC2",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:CPU|Processor) idle(?: time)?(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)$/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "-1"
+              ],
+              "text": "scale(-1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "100"
+              ],
+              "text": "offset(100)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "C2␟$__zbx_host_name"
+              ],
+              "text": "setAlias(C2␟$__zbx_host_name)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "QM1",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:memory (?:utili[sz]ation|usage)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)?|(?:used memory|memory used)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?))$/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "M1␟$__zbx_host_name"
+              ],
+              "text": "setAlias(M1␟$__zbx_host_name)",
+              "added": false
+            }
+          ],
+          "proxy": {
+            "filter": ""
+          },
+          "trigger": {
+            "filter": ""
+          },
+          "tags": {
+            "filter": ""
+          },
+          "macro": {
+            "filter": ""
+          },
+          "options": {
+            "showDisabledItems": false,
+            "skipEmptyValues": false,
+            "disableDataAlignment": true,
+            "useZabbixValueMapping": false
+          },
+          "table": {
+            "skipEmptyValues": false
+          }
+        },
+        {
+          "refId": "QM2",
+          "datasource": {
+            "type": "alexanderzobnin-zabbix-datasource",
+            "uid": "zabbix-lab"
+          },
+          "queryType": "0",
+          "group": {
+            "filter": "${devtype:raw}"
+          },
+          "host": {
+            "filter": "$device"
+          },
+          "application": {
+            "filter": ""
+          },
+          "itemTag": {
+            "filter": ""
+          },
+          "item": {
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:free memory|memory free|available memory|memory available)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)$/i"
+          },
+          "functions": [
+            {
+              "def": {
+                "name": "scale",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "factor",
+                    "type": "float",
+                    "options": [
+                      100,
+                      0.01,
+                      10,
+                      -1
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "-1"
+              ],
+              "text": "scale(-1)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "offset",
+                "category": "Transform",
+                "params": [
+                  {
+                    "name": "delta",
+                    "type": "float",
+                    "options": [
+                      -100,
+                      100
+                    ]
+                  }
+                ],
+                "defaultParams": [
+                  100
+                ]
+              },
+              "params": [
+                "100"
+              ],
+              "text": "offset(100)",
+              "added": false
+            },
+            {
+              "def": {
+                "name": "setAlias",
+                "category": "Alias",
+                "params": [
+                  {
+                    "name": "alias",
+                    "type": "string"
+                  }
+                ],
+                "defaultParams": []
+              },
+              "params": [
+                "M2␟$__zbx_host_name"
+              ],
+              "text": "setAlias(M2␟$__zbx_host_name)",
               "added": false
             }
           ],
@@ -1414,10 +1642,74 @@
           "options": {
             "mode": "seriesToRows",
             "reducers": [
-              "last"
+              "lastNotNull"
             ],
-            "labelsToFields": true,
+            "labelsToFields": false,
             "includeTimeField": false
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Field",
+            "format": "regexp",
+            "regExp": "/^(?<col>[^␟]*)␟(?<host>.*)$/",
+            "replace": false,
+            "keepTime": false
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "exclude",
+            "match": "all",
+            "filters": [
+              {
+                "fieldName": "col",
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "^[CM][0-9]$"
+                  }
+                }
+              },
+              {
+                "fieldName": "Last *",
+                "config": {
+                  "id": "greater",
+                  "options": {
+                    "value": 100
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "exclude",
+            "match": "all",
+            "filters": [
+              {
+                "fieldName": "col",
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "^[CM][0-9]$"
+                  }
+                }
+              },
+              {
+                "fieldName": "Last *",
+                "config": {
+                  "id": "lower",
+                  "options": {
+                    "value": 0
+                  }
+                }
+              }
+            ]
           }
         },
         {
@@ -1428,11 +1720,11 @@
                 "operation": "groupby",
                 "aggregations": []
               },
-              "Field": {
+              "col": {
                 "operation": "groupby",
                 "aggregations": []
               },
-              "Last": {
+              "Last *": {
                 "operation": "aggregate",
                 "aggregations": [
                   "max"
@@ -1444,9 +1736,9 @@
         {
           "id": "groupingToMatrix",
           "options": {
-            "columnField": "Field",
+            "columnField": "col",
             "rowField": "host",
-            "valueField": "Last (max)",
+            "valueField": "Last * (max)",
             "emptyValue": "null"
           }
         },
@@ -1456,9 +1748,39 @@
             "mode": "reduceRow",
             "reduce": {
               "include": [
-                "ICMP",
-                "SNMP",
-                "Agent"
+                "C1",
+                "C2"
+              ],
+              "reducer": "firstNotNull"
+            },
+            "alias": "CPU",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "M1",
+                "M2"
+              ],
+              "reducer": "firstNotNull"
+            },
+            "alias": "Memory",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "AVI",
+                "AVS",
+                "AVA"
               ],
               "reducer": "sum"
             },
@@ -1473,6 +1795,10 @@
               {
                 "field": "Status",
                 "desc": false
+              },
+              {
+                "field": "host\\col",
+                "desc": false
               }
             ]
           }
@@ -1481,19 +1807,24 @@
           "id": "organize",
           "options": {
             "excludeByName": {
-              "ICMP": true,
-              "SNMP": true,
-              "Agent": true
+              "AVI": true,
+              "AVS": true,
+              "AVA": true,
+              "C1": true,
+              "C2": true,
+              "M1": true,
+              "M2": true
             },
             "indexByName": {
-              "host\\Field": 0,
-              "Type": 1,
+              "host\\col": 0,
+              "TYP": 1,
               "Status": 2,
               "CPU": 3,
               "Memory": 4
             },
             "renameByName": {
-              "host\\Field": "Device"
+              "host\\col": "Device",
+              "TYP": "Type"
             }
           }
         }
@@ -1702,7 +2033,7 @@
                     "options": {
                       "match": "null+nan",
                       "result": {
-                        "text": "—",
+                        "text": "N/A",
                         "color": "#8e8e8e",
                         "index": 0
                       }
@@ -1768,7 +2099,7 @@
                     "options": {
                       "match": "null+nan",
                       "result": {
-                        "text": "—",
+                        "text": "N/A",
                         "color": "#8e8e8e",
                         "index": 0
                       }
@@ -2006,10 +2337,10 @@
             "filter": ""
           },
           "itemTag": {
-            "filter": "component: cpu"
+            "filter": ""
           },
           "item": {
-            "filter": "/(utili[sz]ation|usage|load)/i"
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:CPU|Processor)(?: total)? (?:utili[sz]ation|usage)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)?$/i"
           },
           "functions": [
             {
@@ -2163,10 +2494,10 @@
             "filter": ""
           },
           "itemTag": {
-            "filter": "component: memory"
+            "filter": ""
           },
           "item": {
-            "filter": "/(utili[sz]ation|usage)/i"
+            "filter": "/^(?:(?:[^:]{1,40}|#?\\d+): )?(?:[A-Za-z-]+ ){0,3}(?:memory (?:utili[sz]ation|usage)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?)?|(?:used memory|memory used)(?: ?\\(%\\)|, ?%| in %| percent(?:age)?))$/i"
           },
           "functions": [
             {

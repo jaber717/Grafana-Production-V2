@@ -1,0 +1,75 @@
+NOC — Command Center 2.5.0: browser matrix + 9/30/100 devices (tests/noc/ui-matrix.py --bulk), dashboard deployed by install.sh --dashboards
+Grafana 13.2.3 + Zabbix plugin 6.8.0 on AlmaLinux 9.8. Zabbix = SIMULATED API tests/noc/zabbix7-api.mjs --matrix --bulk 100 --realistic (per-item poll phase, missed polls). NOT a real Zabbix server, NOT production.
+
+### Rule matrix: 26 devices (ICMP/SNMP/agent, stale, conflicting, vendors, units, missing metrics)
+  [PASS] matrix: KPI tiles {'Selected devices': 26, 'UP': 17, 'DOWN': 6, 'UNKNOWN': 3}
+  [PASS] matrix: fleet table lists exactly the 26 selected devices
+  [PASS] matrix: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] matrix: Device type of every device
+  [PASS] matrix: CPU % of every device
+  [PASS] matrix: Memory % of every device
+  [PASS] matrix: sorted DOWN, then UNKNOWN, then UP
+  [PASS] matrix: a missing metric is N/A, never 0
+    (matrix: dashboard load 6.4s, 11 data requests, 248 KiB fetched)
+  [PASS] CPU/memory data alone never makes a device UP (MX-CPU-ONLY, MX-STALE-ALL are UNKNOWN)
+  [PASS] ICMP outranks SNMP: ICMP down + SNMP up = DOWN; ICMP up + SNMP down = UP
+  [PASS] SNMP outranks the agent: SNMP down + agent up = DOWN; SNMP up + agent down = UP
+  [PASS] stale ICMP is ignored, fresh SNMP decides
+  [PASS] CPU temperature / fan / per-core items are not taken as CPU %
+  [PASS] memory in bytes is not mixed with percentages
+### Matrix, one device removed and one added (selection change)
+  [PASS] matrix -3 +BLK: KPI tiles {'Selected devices': 24, 'UP': 16, 'DOWN': 5, 'UNKNOWN': 3}
+  [PASS] matrix -3 +BLK: fleet table lists exactly the 24 selected devices
+  [PASS] matrix -3 +BLK: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] matrix -3 +BLK: Device type of every device
+  [PASS] matrix -3 +BLK: CPU % of every device
+  [PASS] matrix -3 +BLK: Memory % of every device
+  [PASS] matrix -3 +BLK: sorted DOWN, then UNKNOWN, then UP
+  [PASS] matrix -3 +BLK: a missing metric is N/A, never 0
+    (matrix -3 +BLK: dashboard load 6.2s, 11 data requests, 246 KiB fetched)
+### 9 devices selected
+  [PASS] 9 devices: KPI tiles {'Selected devices': 9, 'UP': 8, 'DOWN': 1, 'UNKNOWN': 0}
+  [PASS] 9 devices: fleet table lists exactly the 9 selected devices
+  [PASS] 9 devices: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] 9 devices: Device type of every device
+  [PASS] 9 devices: CPU % of every device
+  [PASS] 9 devices: Memory % of every device
+  [PASS] 9 devices: sorted DOWN, then UNKNOWN, then UP
+  [PASS] 9 devices: a missing metric is N/A, never 0
+    (9 devices: dashboard load 6.3s, 11 data requests, 163 KiB fetched)
+### 30 devices selected
+  [PASS] 30 devices: KPI tiles {'Selected devices': 30, 'UP': 27, 'DOWN': 3, 'UNKNOWN': 0}
+  [PASS] 30 devices: fleet table lists exactly the 30 selected devices
+  [PASS] 30 devices: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] 30 devices: Device type of every device
+  [PASS] 30 devices: CPU % of every device
+  [PASS] 30 devices: Memory % of every device
+  [PASS] 30 devices: sorted DOWN, then UNKNOWN, then UP
+  [PASS] 30 devices: a missing metric is N/A, never 0
+    (30 devices: dashboard load 7.2s, 11 data requests, 310 KiB fetched)
+### 30 devices: selection change, then automatic refresh keeps the order
+  [PASS] 30 devices, 1 out / 1 in: KPI tiles {'Selected devices': 30, 'UP': 27, 'DOWN': 3, 'UNKNOWN': 0}
+  [PASS] 30 devices, 1 out / 1 in: fleet table lists exactly the 30 selected devices
+  [PASS] 30 devices, 1 out / 1 in: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] 30 devices, 1 out / 1 in: Device type of every device
+  [PASS] 30 devices, 1 out / 1 in: CPU % of every device
+  [PASS] 30 devices, 1 out / 1 in: Memory % of every device
+  [PASS] 30 devices, 1 out / 1 in: sorted DOWN, then UNKNOWN, then UP
+  [PASS] 30 devices, 1 out / 1 in: a missing metric is N/A, never 0
+    (30 devices, 1 out / 1 in: dashboard load 7.3s, 11 data requests, 310 KiB fetched)
+  [PASS] auto-refresh (30 s) re-queried Zabbix
+  [PASS] table refreshed itself while open and is still sorted DOWN, UNKNOWN, UP
+### 100 devices selected
+  [PASS] 100 devices: KPI tiles {'Selected devices': 100, 'UP': 90, 'DOWN': 10, 'UNKNOWN': 0}
+  [PASS] 100 devices: fleet table lists exactly the 100 selected devices
+  [PASS] 100 devices: Availability status (UP / DOWN / UNKNOWN) of every device
+  [PASS] 100 devices: Device type of every device
+  [PASS] 100 devices: CPU % of every device
+  [PASS] 100 devices: Memory % of every device
+  [PASS] 100 devices: sorted DOWN, then UNKNOWN, then UP
+  [PASS] 100 devices: a missing metric is N/A, never 0
+    (100 devices: dashboard load 9.7s, 11 data requests, 707 KiB fetched)
+### No query error anywhere
+  [PASS] every Zabbix query of every page answered without error
+
+COMMAND CENTER MATRIX/BULK: 57 PASS, 0 FAIL

@@ -1,10 +1,10 @@
-# NOC dashboards (release 2.3.0, Command Center 2.4.0): every device is chosen in Grafana, from what Zabbix reports
+# NOC dashboards (release 2.3.0, Command Center rules 2.5.0): every device is chosen in Grafana, from what Zabbix reports
 
 Three dashboards in the folder **NOC** (the first two keep their uids, so links and bookmarks keep working):
 
 | Dashboard | uid | What it shows |
 |---|---|---|
-| NOC — Command Center | `noc-command-center` | the wallboard for any number of devices: UP / DOWN / UNKNOWN counts, problems, one row per device, CPU and memory trends — guide: [NOC-COMMAND-CENTER.md](NOC-COMMAND-CENTER.md) |
+| NOC — Command Center | `noc-command-center` | the wallboard for any number of devices: UP / DOWN / UNKNOWN counts, problems, one row per device (DOWN first; status from ICMP > SNMP > agent availability, CPU and memory by a documented matching order), CPU and memory trends — guide: [NOC-COMMAND-CENTER.md](NOC-COMMAND-CENTER.md) |
 | NOC — Device Health | `noc-device-health` | one device: ICMP reachability, response time and loss, SNMP availability, uptime, CPU, memory, interface status, traffic, errors/discards |
 | NOC — Network Overview | `noc-wan-overview` | every device of the chosen type: ICMP and SNMP availability, CPU and memory (highest first), ICMP response time |
 

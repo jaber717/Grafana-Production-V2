@@ -1,0 +1,6 @@
+Zabbix-side load of one page load, 2.4.0 vs 2.5.0 (SIMULATED Zabbix API, 100 BLK devices: 5 vendors' item names, 48-port switches; counted from the stand-in's request log)
+2.4.0, 30 devices : item.get x6 (items returned: total 8148, largest call 4050); history.get x9 (216 itemids)
+2.4.0, 100 devices: item.get x6 (items returned: total 27000, largest call 13420); history.get x9 (720 itemids)
+2.5.0, 30 devices : item.get x3 (items returned: total 3960, largest call 2920); history.get x9 (240 itemids)
+2.5.0, 100 devices: item.get x3 (items returned: total 13120, largest call 9636); history.get x9 (800 itemids)
+Browser side is unchanged (about 0.7 MiB / 100 devices). This shows a reduced load; it does not prove the production HTTP 500 cause (needs the Zabbix frontend PHP/nginx log).

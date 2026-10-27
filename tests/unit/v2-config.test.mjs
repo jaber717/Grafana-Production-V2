@@ -215,14 +215,14 @@ test('NOC — Command Center: new uid in the NOC folder, multi-device selection,
     assert.equal(t.host.filter, '$device', `${p.title}/${t.refId}: follows the Devices selection`);
     assert.ok(t.group.filter === '${devtype:raw}' || /^@@NOC_(ROUTER|SWITCH|FIREWALL)@@$/.test(t.group.filter), `${p.title}/${t.refId}: group ${t.group.filter}`);
   }
-  assert.deepEqual(table.targets.map((t) => t.refId), ['ICMP', 'SNMP', 'AGENT', 'CPU', 'MEM', 'T_ROUTER', 'T_SWITCH', 'T_FIREWALL']);
+  assert.deepEqual(table.targets.map((t) => t.refId), ['AVI', 'AVS', 'AVA', 'TR', 'TS', 'TF', 'QC1', 'QC2', 'QM1', 'QM2']);
   const env = ENV({ ZABBIX_DATASOURCE_UID: 'ffk3a9zbx', NOC_GROUPS_ROUTER: '/^(?:Network/Routers|Network/WAN Edge)$/i' });
   const out = effectiveDashboards({ env, envName: 'production', itemMap: null }).find((d) => d.dashboard.uid === 'noc-command-center');
   assert.equal(out.state, 'ok');
   const txt = JSON.stringify(out.dashboard);
   assert.ok(!txt.includes('@@NOC') && !txt.includes('"zabbix-lab"'), 'placeholders rendered, adopted datasource used');
   assert.deepEqual(datasourceRefs(out.dashboard), ['ffk3a9zbx']);
-  assert.equal(flat(out.dashboard.panels).find((p) => p.type === 'table').targets.find((t) => t.refId === 'T_ROUTER').group.filter, '/^(?:Network/Routers|Network/WAN Edge)$/i');
+  assert.equal(flat(out.dashboard.panels).find((p) => p.type === 'table').targets.find((t) => t.refId === 'TR').group.filter, '/^(?:Network/Routers|Network/WAN Edge)$/i');
   const off = effectiveDashboards({ env: ENV({ ZABBIX_ENABLED: 'no', ZABBIX_URL: '', ZABBIX_USER: '' }), envName: 'production', itemMap: null }).find((d) => d.dashboard.uid === 'noc-command-center');
   assert.equal(off.state, 'pending', 'without Zabbix: deployed with the notice like the other NOC dashboards');
   assert.ok(flat(off.dashboard.panels).some((p) => p.id === table.id && p.type === 'table'), 'the notice panel does not take the fleet table id');

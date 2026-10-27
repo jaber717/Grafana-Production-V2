@@ -1,0 +1,54 @@
+install.sh --dashboards 2.4.0 -> 2.5.0 on the TEST VM (SIMULATED Zabbix API); OS release file forced to rhel (TEST ONLY)
+
+install.sh --dashboards on the TEST VM (Grafana 13.2.3 + plugin 6.8.0, AlmaLinux 9.8; Zabbix data source adopted; 2 operator-made dashboards present)
+Starting point: the 2.4.0 Command Center restored into Grafana (what production holds today).
+
+########## state before run 1
+dashboard netflow-asn folder=netflow 'NetFlow | ASN & Internet'
+dashboard netflow-exporters folder=netflow 'NetFlow | Exporters & Interfaces'
+dashboard netflow-health folder=netflow 'NetFlow | Platform Health'
+dashboard netflow-overview folder=netflow 'NetFlow | NOC Overview'
+dashboard netflow-top-talkers folder=netflow 'NetFlow | Top Talkers'
+dashboard noc-command-center folder=noc 'NOC — Command Center'
+dashboard noc-device-health folder=noc 'NOC — Device Health'
+dashboard noc-wan-overview folder=noc 'NOC — Network Overview'
+dashboard user-own-general folder= "Team notes (operator's own)"
+dashboard user-own-noc folder=noc "NOC (operator's own)"
+  json-sha256 netflow-asn 4b3453512e765c9d 
+  json-sha256 netflow-exporters 6f5d906e69de7db0 
+  json-sha256 netflow-health 77346888fbf9f53a 
+  json-sha256 netflow-overview 98e773b638232aa6 
+  json-sha256 netflow-top-talkers 6407fc9f7fc74d26 
+  json-sha256 noc-command-center 36e4b81f184b90be 
+  json-sha256 noc-device-health 37df01c1ffe0584b 
+  json-sha256 noc-wan-overview 2967f0f424c83708 
+  json-sha256 user-own-general 5970d5d520963a80 
+  json-sha256 user-own-noc 8dd6bcaf7df10c90 
+datasource dg2evelbngb9cb alexanderzobnin-zabbix-datasource 'Zabbix Production' http://127.0.0.1:18081/api_jsonrpc.php
+MainPID=2517 ActiveEnterTimestamp=Tue 2026-10-27 13:57:05 UTC 
+db40e9a28177a7cfcf0432faea4e150a3909d9b13cc72c462b8a0d4fcb2fb06d  /etc/grafana/grafana.ini
+e9248b33d3fa085ac3c6cdab10eb632be3e976aff08556de103f4a3781f3c750  /etc/grafana-platform/platform.env
+0efae85664b6c24da471ccfc66b277efa7ed4b3ca0916352c379ce78a5b45e08  /var/lib/grafana/plugins/alexanderzobnin-zabbix-app/plugin.json
+
+########## run 1
+[PASS] release 2.5.0 deployed to /opt/grafana-platform/releases/2.5.0 (command: /usr/local/sbin/grafana-platform)
+    updated   dashboard noc-command-center
+    applied: 0 created, 1 updated, 10 unchanged, 0 refused, 2 skipped
+    present  noc-command-center  "NOC — Command Center"  9 panels  datasource: dg2evelbngb9cb
+    other    user-own-noc  "NOC (operator's own)" (not managed by this release, left alone)
+
+########## run 2 (re-run: idempotency)
+[PASS] release 2.5.0 deployed to /opt/grafana-platform/releases/2.5.0 (command: /usr/local/sbin/grafana-platform)
+    unchanged dashboard noc-command-center
+    applied: 0 created, 0 updated, 11 unchanged, 0 refused, 2 skipped
+    present  noc-command-center  "NOC — Command Center"  9 panels  datasource: dg2evelbngb9cb
+    other    user-own-noc  "NOC (operator's own)" (not managed by this release, left alone)
+
+########## diff before -> after run 1 (json-sha lines show content, not ids/versions)
+16c16
+<   json-sha256 noc-command-center 36e4b81f184b90be 
+---
+>   json-sha256 noc-command-center 68fc33758b014980 
+
+########## diff after run 1 -> after run 2
+(identical)

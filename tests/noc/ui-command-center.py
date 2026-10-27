@@ -132,7 +132,7 @@ async def verify(page, label, devs, shot=None, full=True):
     check(f"{label}: DOWN first, then UNKNOWN, then UP", [order[x["status"]] for x in r] == sorted(order[x["status"]] for x in r), [x["status"] for x in r])
     check(f"{label}: Type per device", all(x["type"] == TYPE_OF[x["device"]] for x in r), [(x["device"], x["type"]) for x in r if x["type"] != TYPE_OF.get(x["device"])])
     miss = [x for x in r if x["device"] in E["no_cpu_mem"]]
-    check(f"{label}: missing CPU/Memory shown as '—' (never 0)", all(x["cpu"] == "—" and x["mem"] == "—" for x in miss), miss)
+    check(f"{label}: missing CPU/Memory shown as N/A (never 0)", all(x["cpu"] == "N/A" and x["mem"] == "N/A" for x in miss), miss)
     check(f"{label}: devices with CPU/Memory items show a percentage", all(re.fullmatch(r"\d+%", x["cpu"]) and re.fullmatch(r"\d+%", x["mem"]) for x in r if x["device"] not in E["no_cpu_mem"]),
           [x for x in r if x["device"] not in E["no_cpu_mem"] and not re.fullmatch(r"\d+%", x["cpu"])][:3])
     return r

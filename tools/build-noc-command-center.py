@@ -12,15 +12,24 @@ Selection (Grafana variables only, kept in the URL):
                regex /^(a|b|c)$/ with every value regex-escaped, and "All" into the same list of every offered host (no allValue:
                the plugin would escape a custom "match all" regex).
 
-Fleet table (one row per selected device) — every value is the LAST value Zabbix reported in the last 15 minutes (older = no value):
-  ICMP / SNMP / Agent  items 'ICMP ping' (0/1), 'SNMP agent availability' and 'Zabbix agent availability' (0 not available,
-               1 available, 2 unknown). Backend functions turn each into: up -> 100, down -> -1, unknown/none -> null
-               (removeAboveValue(1) drops "2 = unknown"; scale(101) + offset(-1)).
-  Status       SUM of the three: > 0 = UP (at least one says reachable), < 0 = DOWN (only "down" answers), 0 = UNKNOWN (no answer at
-               all, unknown, or nothing in 15 minutes). Sorted ascending: DOWN first, then UNKNOWN, then UP.
-  Type         the same availability items queried per Device Type group set (scale(0) + offset(1/2/3)) -> Router / Switch / Firewall.
-  CPU, Memory  item tag component: cpu / component: memory + name regex (as on the other NOC dashboards); highest value when a
-               device reports several (CPU boards, engines, planes). Missing -> "—", never 0.
+Fleet table (one row per selected device). Every query below is a plain Zabbix "Metrics" query whose series is renamed with the
+plugin's setAlias to  <COLUMN>␟<host>  (the alias macro $__zbx_host_name is filled in per series by the plugin). The table then splits
+that name back into column + host. WHY: the plugin only copies an alias into the field NAME when the series of ALL queries start at
+exactly the same two timestamps (responseHandler.isConvertibleToWide); real Zabbix items are polled at their own times, so in
+production they never do, the alias stays in field.config.displayNameFromDS, and Grafana's "Reduce" transformation (labelsToFields on)
+then reads the field name "Value" for every series: every column collapsed into one "Value" and the Status was always UNKNOWN (release
+2.4.0 defect, see CHANGELOG 2.5.0). The display name is honoured by "Reduce" with labelsToFields off, in both cases, and carrying the
+host inside the alias needs no label at all.
+  AVI / AVS / AVA   availability: item 'ICMP ping' (0/1), 'SNMP agent availability' and 'Zabbix agent availability' (0 not available,
+               1 available, 2 unknown). Backend functions turn each into a weighted signal: up -> +w, down -> -w, unknown -> no sample
+               (removeAboveValue(1)); w = 100 / 10 / 1.
+  Status       SUM of the three weighted signals: the strongest signal present decides (ICMP beats SNMP beats agent: 100 > 10 + 1), > 0
+               UP, < 0 DOWN, 0 = no usable signal = UNKNOWN. Only samples of the last WINDOW count (older = stale = no signal).
+  TYP          the same availability items queried per Device Type group set (scale(0) + offset(1/2/3)) -> Router / Switch / Firewall.
+  C1 C2 / M1 M2  CPU and memory utilization %, TIERS tried in this order (first tier that has a value wins, see METRICS below):
+               tier 1 = utilization / usage item, tier 2 = idle% (CPU) or free/available% (memory), inverted by the backend (100 - x).
+               Item names are matched by anchored patterns (no broad words), values outside 0..100 are discarded, several items of one
+               tier (CPU boards, memory pools) -> the highest.
 KPIs: re-use the fleet table's result (data source "-- Dashboard --"), so they always agree with the table and cost no query; a
                filter that leaves no row counts 0, while no answer from Zabbix at all shows "—" (never a reassuring 0).
 Problems: the Zabbix plugin's own query types (Triggers count, Problems), over the same Device selection.
@@ -33,11 +42,35 @@ DS = {"type": "alexanderzobnin-zabbix-datasource", "uid": "zabbix-lab"}     # re
 DASH_DS = {"type": "datasource", "uid": "-- Dashboard --"}
 GROUP = "${devtype:raw}"      # raw: the option value is already a /regex/ and must not be escaped by the plugin
 DEVICES = "$device"
-WINDOW = "15m"                # the fleet table's "now": a value older than this is not shown (device becomes UNKNOWN)
+WINDOW = "10m"                # the fleet table's "now": a sample older than this is stale and ignored (no signal / not reported)
+SEP = "\u241f"                # separates COLUMN and host inside the series alias (a character no Zabbix host name contains)
 
-ITEM_CPU = "/(utili[sz]ation|usage|load)/i"
-ITEM_MEM = "/(utili[sz]ation|usage)/i"
+# ---- METRICS: the documented matching order (docs/NOC-COMMAND-CENTER.md). Item NAMES are matched by anchored patterns (RE2, case
+# insensitive): the whole name must read "[prefix: ][up to 3 plain words ]CPU utilization" - so "CPU temperature", "CPU fan", "CPU core 3
+# utilization", "CPU load average", "Memory usage, bytes" never match, while "#1: CPU utilization", "MPU Board 0: CPU utilization",
+# "Management plane CPU utilization", "CPU usage", "Memory usage" do. No tag is required (vendors tag differently or not at all).
+_PFX = r"(?:(?:[^:]{1,40}|#?\d+): )?(?:[A-Za-z-]+ ){0,3}"
+_PCT_OPT = r"(?: ?\(%\)|, ?%| in %| percent(?:age)?)?"
+_PCT_REQ = r"(?: ?\(%\)|, ?%| in %| percent(?:age)?)"
+METRICS = {
+    "CPU": [
+        # tier 1: total CPU utilization (several CPUs / boards / planes of one device -> the highest)
+        {"col": "C1", "invert": False, "item": "/^" + _PFX + r"(?:CPU|Processor)(?: total)? (?:utili[sz]ation|usage)" + _PCT_OPT + "$/i"},
+        # tier 2: idle percentage, shown as 100 - idle (a percentage is required: a bare 'idle' might be a time)
+        {"col": "C2", "invert": True, "item": "/^" + _PFX + r"(?:CPU|Processor) idle(?: time)?" + _PCT_REQ + "$/i"},
+    ],
+    "Memory": [
+        # tier 1: memory utilization / usage as a percentage
+        {"col": "M1", "invert": False, "item": "/^" + _PFX + r"(?:memory (?:utili[sz]ation|usage)" + _PCT_OPT + r"|(?:used memory|memory used)" + _PCT_REQ + ")$/i"},
+        # tier 2: free / available percentage, shown as 100 - free
+        {"col": "M2", "invert": True, "item": "/^" + _PFX + r"(?:free memory|memory free|available memory|memory available)" + _PCT_REQ + "$/i"},
+    ],
+}
 ITEM_AVAIL = "/^(ICMP ping|SNMP agent availability|Zabbix agent availability)$/"
+TYPE_TAGS = "component: health, component: network"   # only the Type column needs a tag (official 7.0 templates set it); Status/CPU/Memory do not
+# availability signals: precedence = weight (ICMP 100 > SNMP 10 > agent 1; 100 > 10 + 1, 10 > 1)
+AVAIL = [("AVI", "ICMP", "/^ICMP ping$/", 100, False), ("AVS", "SNMP", "/^SNMP agent availability$/", 10, True), ("AVA", "agent", "/^Zabbix agent availability$/", 1, True)]
+HELPER_COLS = ["AVI", "AVS", "AVA", "C1", "C2", "M1", "M2"]
 
 FN_DEF = {
     "scale": {"name": "scale", "category": "Transform", "params": [{"name": "factor", "type": "float", "options": [100, 0.01, 10, -1]}], "defaultParams": [100]},
@@ -109,7 +142,7 @@ TYPE_MAP = [{"type": "value", "options": {"1": {"text": "Router", "index": 0}, "
             {"type": "special", "options": {"match": "null+nan", "result": {"text": "—", "index": 3}}}]
 PCT = {"mode": "absolute", "steps": [{"color": "green", "value": None}, {"color": "orange", "value": 70}, {"color": "red", "value": 90}]}
 ALERT = {"mode": "absolute", "steps": [{"color": "transparent", "value": None}, {"color": "red", "value": 1}]}   # tile turns red when > 0
-NO_VALUE = [{"type": "special", "options": {"match": "null+nan", "result": {"text": "—", "color": UNKNOWN, "index": 0}}}]
+NO_VALUE = [{"type": "special", "options": {"match": "null+nan", "result": {"text": "N/A", "color": UNKNOWN, "index": 0}}}]
 
 TABLE_ID = 10
 TOP_N = 10                    # trend panels: the TOP_N series with the highest value in the time range (Zabbix plugin top())
@@ -117,37 +150,60 @@ LINK_DEVICE = ("/d/noc-device-health/noc-device-health?orgId=1&${devtype:querypa
                "&var-interface=$__all")
 
 
+def alias(col):
+    return col + SEP + "$__zbx_host_name"
+
+
 def fleet_table(x, y, w, h):
-    T = [
-        target("ICMP", "/^ICMP ping$/", functions=[fn("scale", 101), fn("offset", -1), fn("setAlias", "ICMP")]),
-        target("SNMP", "/^SNMP agent availability$/", functions=[fn("removeAboveValue", 1), fn("scale", 101), fn("offset", -1), fn("setAlias", "SNMP")]),
-        target("AGENT", "/^Zabbix agent availability$/", functions=[fn("removeAboveValue", 1), fn("scale", 101), fn("offset", -1), fn("setAlias", "Agent")]),
-        target("CPU", ITEM_CPU, item_tag="component: cpu", functions=[fn("setAlias", "CPU")]),
-        target("MEM", ITEM_MEM, item_tag="component: memory", functions=[fn("setAlias", "Memory")]),
-    ]
-    for n, (ref, ph) in enumerate([("T_ROUTER", "@@NOC_ROUTER@@"), ("T_SWITCH", "@@NOC_SWITCH@@"), ("T_FIREWALL", "@@NOC_FIREWALL@@")], start=1):
-        T.append(target(ref, ITEM_AVAIL, group=ph, functions=[fn("scale", 0), fn("offset", n), fn("setAlias", "Type")]))
+    T = []
+    # availability: the strongest signal present decides (weights 100 / 10 / 1); 'unknown' (2) of SNMP/agent availability is dropped
+    for ref, label, item, weight, drop_unknown in AVAIL:
+        fns = ([fn("removeAboveValue", 1)] if drop_unknown else []) + [fn("scale", 2 * weight), fn("offset", -weight), fn("setAlias", alias(ref))]
+        T.append(target(ref, item, functions=fns))
+    # type: the same availability items per Device Type host-group set -> 1 Router / 2 Switch / 3 Firewall (tag-scoped: cheap)
+    for n, (ref, ph) in enumerate([("TR", "@@NOC_ROUTER@@"), ("TS", "@@NOC_SWITCH@@"), ("TF", "@@NOC_FIREWALL@@")], start=1):
+        T.append(target(ref, ITEM_AVAIL, item_tag=TYPE_TAGS, group=ph, functions=[fn("scale", 0), fn("offset", n), fn("setAlias", alias("TYP"))]))
+    # CPU / memory tiers (METRICS); an inverted tier (idle%, free%) is turned into utilization by the backend: 100 - x
+    for kind in ("CPU", "Memory"):
+        for t in METRICS[kind]:
+            fns = ([fn("scale", -1), fn("offset", 100)] if t["invert"] else []) + [fn("setAlias", alias(t["col"]))]
+            T.append(target("Q" + t["col"], t["item"], functions=fns))
     pct = lambda name: {"matcher": {"id": "byName", "options": name}, "properties": [
         {"id": "unit", "value": "percent"}, {"id": "decimals", "value": 0}, {"id": "thresholds", "value": PCT}, {"id": "mappings", "value": NO_VALUE},
         {"id": "custom.cellOptions", "value": {"type": "color-text"}}, {"id": "custom.width", "value": 110}, {"id": "custom.align", "value": "center"}]}
+    guard = lambda cond, value: {"id": "filterByValue", "options": {"type": "exclude", "match": "all", "filters": [
+        {"fieldName": "col", "config": {"id": "regex", "options": {"value": "^[CM][0-9]$"}}},
+        {"fieldName": "Last *", "config": {"id": cond, "options": {"value": value}}}]}}
     return {
         "id": TABLE_ID, "type": "table", "title": "Fleet health — selected devices",
-        "description": ("One row per selected device, DOWN first. Status: UP = ICMP ping, SNMP or Zabbix agent availability reports reachable; "
-                        "DOWN = they only report unreachable; UNKNOWN = no answer, 'unknown', or nothing reported in the last " + WINDOW + ". "
-                        "CPU / Memory: highest current value of the items tagged component: cpu / component: memory; — = not reported. "
-                        "Click a device to open NOC — Device Health. A device is listed when Zabbix has at least one of these items for it."),
+        "description": ("One row per selected device, DOWN first, then UNKNOWN, then UP. Status: the strongest fresh signal decides - ICMP ping, else SNMP "
+                        "availability, else Zabbix agent availability (1 = UP, 0 = DOWN); a signal that says 'unknown' or has no sample in the last " + WINDOW +
+                        " is ignored; no usable signal = UNKNOWN. CPU / Memory: utilization percentage (0-100) of the device's CPU / memory items, "
+                        "tier 1 'utilization / usage', tier 2 'idle' / 'free' inverted; several items (CPU boards, memory pools) -> the highest; "
+                        "N/A = no such item or no sample. Click a device to open NOC — Device Health."),
         "datasource": DS, "gridPos": {"h": h, "w": w, "x": x, "y": y}, "timeFrom": WINDOW, "hideTimeOverride": True,
         "targets": T,
         "transformations": [
-            {"id": "reduce", "options": {"mode": "seriesToRows", "reducers": ["last"], "labelsToFields": True, "includeTimeField": False}},
-            {"id": "groupBy", "options": {"fields": {"host": {"operation": "groupby", "aggregations": []}, "Field": {"operation": "groupby", "aggregations": []},
-                                                     "Last": {"operation": "aggregate", "aggregations": ["max"]}}}},
-            {"id": "groupingToMatrix", "options": {"columnField": "Field", "rowField": "host", "valueField": "Last (max)", "emptyValue": "null"}},
-            {"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"include": ["ICMP", "SNMP", "Agent"], "reducer": "sum"}, "alias": "Status", "replaceFields": False}},
-            {"id": "sortBy", "options": {"sort": [{"field": "Status", "desc": False}]}},
-            {"id": "organize", "options": {"excludeByName": {"ICMP": True, "SNMP": True, "Agent": True},
-                                           "indexByName": {"host\\Field": 0, "Type": 1, "Status": 2, "CPU": 3, "Memory": 4},
-                                           "renameByName": {"host\\Field": "Device"}}},
+            # 1 one row per series: Field = the alias (COLUMN + SEP + host), Last * = last sample of the window that is not empty
+            {"id": "reduce", "options": {"mode": "seriesToRows", "reducers": ["lastNotNull"], "labelsToFields": False, "includeTimeField": False}},
+            # 2 split the alias: col, host
+            {"id": "extractFields", "options": {"source": "Field", "format": "regexp", "regExp": "/^(?<col>[^" + SEP + "]*)" + SEP + "(?<host>.*)$/", "replace": False, "keepTime": False}},
+            # 3 a CPU / memory sample outside 0..100 is not a percentage (wrong item): dropped, never clipped
+            guard("greater", 100), guard("lower", 0),
+            # 4 one value per host and column; several items of one tier -> the highest
+            {"id": "groupBy", "options": {"fields": {"host": {"operation": "groupby", "aggregations": []}, "col": {"operation": "groupby", "aggregations": []},
+                                                     "Last *": {"operation": "aggregate", "aggregations": ["max"]}}}},
+            # 5 hosts as rows, columns as columns
+            {"id": "groupingToMatrix", "options": {"columnField": "col", "rowField": "host", "valueField": "Last * (max)", "emptyValue": "null"}},
+            # 6 CPU / memory: first tier that has a value; Status: sum of the weighted signals (0 = nothing usable)
+            {"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"include": [t["col"] for t in METRICS["CPU"]], "reducer": "firstNotNull"}, "alias": "CPU", "replaceFields": False}},
+            {"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"include": [t["col"] for t in METRICS["Memory"]], "reducer": "firstNotNull"}, "alias": "Memory", "replaceFields": False}},
+            {"id": "calculateField", "options": {"mode": "reduceRow", "reduce": {"include": [a[0] for a in AVAIL], "reducer": "sum"}, "alias": "Status", "replaceFields": False}},
+            # 7 DOWN (< 0), UNKNOWN (0), UP (> 0); the device name breaks ties: the order is recomputed on every refresh and selection
+            {"id": "sortBy", "options": {"sort": [{"field": "Status", "desc": False}, {"field": "host\\col", "desc": False}]}},
+            {"id": "organize", "options": {"excludeByName": {c: True for c in HELPER_COLS},
+                                           "indexByName": {"host\\col": 0, "TYP": 1, "Status": 2, "CPU": 3, "Memory": 4},
+                                           "renameByName": {"host\\col": "Device", "TYP": "Type"}}},
         ],
         "fieldConfig": {
             "defaults": {"custom": {"align": "left", "cellOptions": {"type": "auto"}, "inspect": False, "filterable": False},
@@ -185,10 +241,10 @@ def status_filter(cond, value):
                                                 "filters": [{"fieldName": "Status", "config": {"id": cond, "options": {"value": value}}}]}}]
 
 
-def trend(title, item, tag, x, y, w, h, desc):
+def trend(title, item, x, y, w, h, desc):
     return {
         "id": pid(), "type": "timeseries", "title": title, "description": desc, "datasource": DS, "gridPos": {"h": h, "w": w, "x": x, "y": y},
-        "targets": [target("A", item, item_tag=tag, functions=[fn("top", TOP_N, "max")])],
+        "targets": [target("A", item, functions=[fn("top", TOP_N, "max")])],
         "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "decimals": 0, "color": {"mode": "palette-classic"},
                                      "custom": {"drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "spanNulls": True,
                                                 "thresholdsStyle": {"mode": "dashed"}},
@@ -233,10 +289,10 @@ def command_center():
                         {"priority": 5, "severity": "Disaster", "color": "rgb(215, 0, 0)", "show": True}]},
     })
     # --- row 3: trends ---
-    P.append(trend(f"CPU utilization — top {TOP_N} of the selected devices", ITEM_CPU, "component: cpu", 0, 18, 12, 8,
+    P.append(trend(f"CPU utilization — top {TOP_N} of the selected devices", METRICS["CPU"][0]["item"], 0, 18, 12, 8,
                    f"The {TOP_N} highest CPU series (peak in the time range) among the selected devices: items tagged component: cpu, one line "
                    "per CPU / engine / plane. Legend sorted by current value."))
-    P.append(trend(f"Memory utilization — top {TOP_N} of the selected devices", ITEM_MEM, "component: memory", 12, 18, 12, 8,
+    P.append(trend(f"Memory utilization — top {TOP_N} of the selected devices", METRICS["Memory"][0]["item"], 12, 18, 12, 8,
                    f"The {TOP_N} highest memory series (peak in the time range) among the selected devices: items tagged component: memory. "
                    "Legend sorted by current value."))
     if sorted(p["id"] for p in P) != sorted(set(p["id"] for p in P)):

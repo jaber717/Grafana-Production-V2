@@ -58,20 +58,24 @@ function trigger(h, description, priority, ageMin, opts = {}) {
   triggers.push({ triggerid: String(30001 + triggers.length), hostid: h.hostid, description, priority: String(priority), value: '1', status: '0', state: '0', comments: '', expression: `{${30001 + triggers.length}}`,
     lastchange: String(now - ageMin * 60), eventid: String(900001 + triggers.length), acknowledged: opts.ack ? '1' : '0', opdata: '', url: '', manual_close: '0', correlation_mode: '0', type: '0', flags: '0', templateid: '0' });
 }
+const truth = [];   // --matrix / --bulk: what each network device SHOULD look like on the dashboard (hand-written per device, GET /__truth)
 function host(name, groupNames, profile) {
   const h = { hostid: String(10500 + hosts.length), host: name, name, status: '0', groups: groupNames.map(group), tags: [{ tag: 'site', value: name.slice(0, 3) }] };
   hosts.push(h);
-  const t = Date.now();
+  // a sample older than `sec` seconds is the last one the device ever reported (items that stopped being collected)
+  const stale = (sec, g) => (sec ? (c) => (c > Math.floor(Date.now() / 1000) - sec ? null : g(c)) : g);
   if (profile.icmp !== false) {
-    item(h, 'ICMP ping', 'icmpping', 3, [['component', 'health'], ['component', 'network']], { valuemapid: '1', gen: () => (profile.down ? 0 : 1) });
-    item(h, 'ICMP loss', 'icmppingloss', 0, [['component', 'health'], ['component', 'network']], { units: '%', gen: () => (profile.down ? 100 : 0) });
-    item(h, 'ICMP response time', 'icmppingsec', 0, [['component', 'health'], ['component', 'network']], { units: 's', gen: (c) => (profile.down ? 0 : 0.002 + (c % 7) / 1000) });   // Zabbix stores 0 when no reply
+    const dn = profile.down || profile.icmpDown;
+    item(h, 'ICMP ping', 'icmpping', 3, [['component', 'health'], ['component', 'network']], { valuemapid: '1', gen: stale(profile.icmpStale, () => (dn ? 0 : 1)) });
+    item(h, 'ICMP loss', 'icmppingloss', 0, [['component', 'health'], ['component', 'network']], { units: '%', gen: () => (dn ? 100 : 0) });
+    item(h, 'ICMP response time', 'icmppingsec', 0, [['component', 'health'], ['component', 'network']], { units: 's', gen: (c) => (dn ? 0 : 0.002 + (c % 7) / 1000) });   // Zabbix stores 0 when no reply
   }
-  if (profile.agent === undefined) item(h, 'SNMP agent availability', 'zabbix[host,snmp,available]', 3, [['component', 'health']], { valuemapid: '2', gen: () => (profile.snmp ?? (profile.down ? 0 : 1)) });
-  else item(h, 'Zabbix agent availability', 'zabbix[host,agent,available]', 3, [['component', 'health']], { valuemapid: '2', gen: () => profile.agent });
+  if (profile.snmp !== false && (profile.agent === undefined || profile.snmp !== undefined)) item(h, 'SNMP agent availability', 'zabbix[host,snmp,available]', 3, [['component', 'health']], { valuemapid: '2', gen: stale(profile.snmpStale, () => (profile.snmp ?? (profile.down ? 0 : 1))) });
+  if (profile.agent !== undefined) item(h, 'Zabbix agent availability', 'zabbix[host,agent,available]', 3, [['component', 'health']], { valuemapid: '2', gen: stale(profile.agentStale, () => profile.agent) });
   item(h, 'Uptime (network)', 'system.net.uptime[sysUpTime.0]', 3, [['component', 'system']], { units: 'uptime', gen: (c) => c - 1700000000 });
-  for (const [i, cpu] of profile.cpu.entries()) item(h, cpu.name, cpu.key, 0, [['component', 'cpu']], { units: '%', gen: (c) => Math.min(99, Math.max(0, cpu.base + 4 * Math.sin(c / 900 + i) + ((c / 60) % 3))) });
-  for (const mem of profile.mem) item(h, mem.name, mem.key, 0, [['component', 'memory']], { units: '%', gen: () => mem.base });
+  for (const [i, cpu] of profile.cpu.entries()) item(h, cpu.name, cpu.key, cpu.vt ?? 0, cpu.tags ?? [['component', 'cpu']], { units: cpu.units ?? '%', gen: stale(cpu.stale, cpu.flat ? () => cpu.base : (c) => Math.min(99, Math.max(0, cpu.base + 4 * Math.sin(c / 900 + i) + ((c / 60) % 3)))) });
+  for (const mem of profile.mem) item(h, mem.name, mem.key, mem.vt ?? 0, mem.tags ?? [['component', 'memory']], { units: mem.units ?? '%', gen: stale(mem.stale, () => mem.base) });
+  for (const x of profile.extra || []) item(h, x.name, x.key, x.vt ?? 0, x.tags ?? [], { units: x.units ?? '', gen: () => x.base });
   profile.ifs.forEach(([ifName, alias, oper], idx) => {
     const n = idx + 1; const tags = [['component', 'network'], ['description', alias], ['interface', ifName]];
     const label = `Interface ${ifName}(${alias})`;
@@ -83,7 +87,8 @@ function host(name, groupNames, profile) {
     item(h, `${label}: Speed`, `net.if.speed[ifHighSpeed.${n}]`, 3, tags, { units: 'bps', gen: () => 1e9 });
   });
   // --fleet: as in Zabbix, nothing is collected by SNMP from an unreachable device (only ICMP and the availability item answer)
-  if (profile.down && flags.includes('--fleet')) for (const i of items.filter((x) => x.hostid === h.hostid && !/^(icmpping|icmppingloss|zabbix\[host,)/.test(x.key_))) i.gen = () => null;
+  if (profile.down && (flags.includes('--fleet') || flags.includes('--matrix') || flags.includes('--bulk'))) for (const i of items.filter((x) => x.hostid === h.hostid && !/^(icmpping|icmppingloss|zabbix\[host,)/.test(x.key_))) i.gen = () => null;
+  if (profile.expect) truth.push({ name, ...profile.expect });
   return h;
 }
 const ports = (prefix, count, down = []) => Array.from({ length: count }, (_, i) => [`${prefix}${i + 1}`, i < 2 ? `uplink-${i + 1}` : '', down.includes(i + 1) ? 2 : 1]);
@@ -126,6 +131,60 @@ if (flags.includes('--fleet')) {
   host('JED-FW-04', ['Network/Firewalls'], forti(21, 49));
   host('JED-FW-05', ['Network/Firewalls'], forti(88, 81));
 }
+// --matrix: one device per rule of the Command Center, each with its hand-written expected result (GET /__truth).
+// Expected: type Router|Switch|Firewall|'—', status UP|DOWN|UNKNOWN, cpu / mem = number (percent) or 'N/A'.
+if (flags.includes('--matrix')) {
+  const R = 'Network/Routers', S = 'Network/Access Switches', F = 'Network/Firewalls';
+  const c = (name, base, o = {}) => ({ name, key: `system.cpu.util[${name.replace(/\W+/g, '.')}]`, base, flat: true, ...o });
+  const m = (name, base, o = {}) => ({ name, key: `vm.memory.util[${name.replace(/\W+/g, '.')}]`, base, ...o });
+  const none = { cpu: [], mem: [], ifs: [] };
+  const e = (type, status, cpu = 'N/A', mem = 'N/A') => ({ expect: { type, status, cpu, mem } });
+  // ---- availability: ICMP / SNMP / agent, stale, conflicting
+  host('MX-ICMP-UP', [R], { ...none, snmp: false, ...e('Router', 'UP') });
+  host('MX-ICMP-DOWN', [R], { ...none, snmp: false, icmpDown: true, ...e('Router', 'DOWN') });
+  host('MX-SNMP-UP', [S], { ...none, icmp: false, snmp: 1, ...e('Switch', 'UP') });
+  host('MX-SNMP-DOWN', [S], { ...none, icmp: false, snmp: 0, ...e('Switch', 'DOWN') });
+  host('MX-SNMP-UNKNOWN', [S], { ...none, icmp: false, snmp: 2, ...e('Switch', 'UNKNOWN') });
+  host('MX-AGENT-UP', [F], { ...none, icmp: false, agent: 1, ...e('Firewall', 'UP') });
+  host('MX-AGENT-DOWN', [F], { ...none, icmp: false, agent: 0, ...e('Firewall', 'DOWN') });
+  host('MX-STALE-ALL', [R], { cpu: [c('CPU utilization', 33)], mem: [], ifs: [], icmpStale: 3600, snmpStale: 3600, ...e('—', 'UNKNOWN', 33) });   // nothing fresh: CPU alone must not make it UP
+  host('MX-STALE-ICMP-SNMP-UP', [S], { ...none, icmpStale: 3600, snmp: 1, ...e('Switch', 'UP') });          // old ICMP ignored, fresh SNMP decides
+  host('MX-STALE-ICMP-SNMP-DOWN', [S], { ...none, icmpStale: 3600, snmp: 0, ...e('Switch', 'DOWN') });
+  host('MX-CONFLICT-ICMPDOWN-SNMPUP', [R], { ...none, icmpDown: true, snmp: 1, ...e('Router', 'DOWN') });    // ICMP outranks SNMP
+  host('MX-CONFLICT-ICMPUP-SNMPDOWN', [R], { ...none, snmp: 0, ...e('Router', 'UP') });
+  host('MX-CONFLICT-SNMPDOWN-AGENTUP', [F], { ...none, icmp: false, snmp: 0, agent: 1, ...e('Firewall', 'DOWN') });    // SNMP outranks the agent
+  host('MX-CONFLICT-SNMPUP-AGENTDOWN', [F], { ...none, icmp: false, snmp: 1, agent: 0, ...e('Firewall', 'UP') });
+  host('MX-CPU-ONLY', [S], { icmp: false, snmp: false, cpu: [c('CPU utilization', 12)], mem: [m('Memory utilization', 21)], ifs: [], ...e('—', 'UNKNOWN', 12, 21) });   // metrics alone: UNKNOWN
+  // ---- CPU / memory across vendors
+  host('MX-CISCO-RTR', [R], { cpu: [c('#1: CPU utilization', 30), c('CPU temperature', 71, { units: 'C' }), c('Fan 1 speed', 4000, { units: 'rpm', tags: [['component', 'cpu']] })], mem: [m('Processor: Memory utilization', 40)], ifs: [], ...e('Router', 'UP', 30, 40) });
+  host('MX-HUAWEI-SW', [S], { cpu: [c('MPU Board 0: CPU utilization', 20), c('MPU Board 1: CPU utilization', 35)], mem: [m('MPU Board 0: Memory utilization', 50)], ifs: [], ...e('Switch', 'UP', 35, 50) });
+  host('MX-FORTI-FW', [F], { cpu: [c('CPU usage', 44), c('CPU core 1 utilization', 91), c('CPU core 2 utilization', 5)], mem: [m('Memory usage', 62), m('Memory usage (bytes)', 6.2e9, { units: 'B', vt: 3 })], ifs: [], ...e('Firewall', 'UP', 44, 62) });
+  host('MX-PALO-FW', [F], { cpu: [c('Management plane: CPU utilization', 12), c('Data plane: CPU utilization', 58)], mem: [m('Memory utilization', 52)], ifs: [], ...e('Firewall', 'UP', 58, 52) });
+  host('MX-GIGAMON', [S], { cpu: [c('CPU utilization', 22, { tags: [] })], mem: [m('Memory usage, %', 33, { tags: [] })], ifs: [], ...e('Switch', 'UP', 22, 33) });                  // no tags at all
+  host('MX-IDLE-FREE', [R], { cpu: [c('CPU idle time, %', 80)], mem: [m('Free memory, %', 25)], ifs: [], ...e('Router', 'UP', 20, 75) });                                                // idle / free are inverted
+  host('MX-BYTES-PERCORE', [S], { cpu: [c('CPU core 1 utilization', 70), c('CPU core 2 utilization', 80), c('CPU temperature', 60, { units: 'C' })], mem: [m('Memory used', 4e9, { units: 'B', vt: 3 }), m('Total memory', 8e9, { units: 'B', vt: 3 })], ifs: [], ...e('Switch', 'UP', 'N/A', 'N/A') });
+  host('MX-MULTI', [R], { cpu: [c('#1: CPU utilization', 10), c('#2: CPU utilization', 70)], mem: [m('Processor: Memory utilization', 40), m('I/O: Memory utilization', 65)], ifs: [], ...e('Router', 'UP', 70, 65) });
+  host('MX-UTIL-AND-IDLE', [F], { cpu: [c('CPU utilization', 30), c('CPU idle time, %', 50)], mem: [m('Memory utilization', 40), m('Free memory, %', 10)], ifs: [], ...e('Firewall', 'UP', 30, 40) });   // tier 1 wins
+  host('MX-OUT-OF-RANGE', [R], { cpu: [c('CPU utilization', 250)], mem: [m('Memory utilization', -5)], ifs: [], ...e('Router', 'UP') });                                                   // impossible values are not shown
+  host('MX-NO-METRICS', [F], { ...none, ...e('Firewall', 'UP') });
+}
+// --bulk N: N more network devices (five vendors' naming, 48 interfaces on switches) for 30 / 100 device runs
+if (flags.includes('--bulk')) {
+  const n = Number(flags[flags.indexOf('--bulk') + 1]);
+  const vend = [
+    (i) => ({ cpu: [{ name: '#1: CPU utilization', key: 'system.cpu.util[cpmCPUTotal5minRev.1]', base: 5 + (i % 80), flat: true }], mem: [{ name: 'Processor: Memory utilization', key: 'vm.memory.util[vm.memory.util.1]', base: 20 + (i % 60) }] }),
+    (i) => ({ cpu: [{ name: 'MPU Board 0: CPU utilization', key: 'system.cpu.util[hwEntityCpuUsage.1]', base: 5 + (i % 80), flat: true }], mem: [{ name: 'MPU Board 0: Memory utilization', key: 'vm.memory.util[hwEntityMemUsage.1]', base: 20 + (i % 60) }] }),
+    (i) => ({ cpu: [{ name: 'CPU utilization', key: 'system.cpu.util[fgSysCpuUsage.0]', base: 5 + (i % 80), flat: true }], mem: [{ name: 'Memory utilization', key: 'vm.memory.util[fgSysMemUsage.0]', base: 20 + (i % 60) }] }),
+    (i) => ({ cpu: [{ name: 'Data plane: CPU utilization', key: 'system.cpu.util[hrProcessorLoad.2]', base: 5 + (i % 80), flat: true }], mem: [{ name: 'Memory utilization', key: 'vm.memory.util[memoryUsedPercentage.0]', base: 20 + (i % 60) }] }),
+    (i) => ({ cpu: [{ name: 'CPU utilization', key: 'system.cpu.util', base: 5 + (i % 80), flat: true, tags: [] }], mem: [{ name: 'Memory usage, %', key: 'vm.memory.pused', base: 20 + (i % 60), tags: [] }] }),
+  ];
+  const types = [['Network/Routers', 'Router'], ['Network/Access Switches', 'Switch'], ['Network/Firewalls', 'Firewall']];
+  for (let i = 0; i < n; i++) {
+    const [g, t] = types[i % 3]; const dn = i % 10 === 3; const v = vend[i % 5](i);
+    const cpu = dn ? 'N/A' : v.cpu[0].base; const mem = dn ? 'N/A' : v.mem[0].base;
+    host(`BLK-${String(i + 1).padStart(3, '0')}`, [g], { ...v, down: dn, ifs: ports('Gi1/0/', t === 'Switch' ? 48 : 8, [3]), expect: { type: t, status: dn ? 'DOWN' : 'UP', cpu, mem } });
+  }
+}
 // triggers in problem state (Zabbix 7.0 template names; priority 5 Disaster, 4 High, 3 Average, 2 Warning, 1 Information)
 const H = (n) => hosts.find((h) => h.name === n);
 trigger(H('RYD-FW-02'), 'Unavailable by ICMP ping', 4, 95);
@@ -156,14 +215,23 @@ function matchTags(objTags, tags, evaltype) {
     throw new Error(`tag operator ${op} not modelled`); };
   return String(evaltype ?? '0') === '2' ? tags.some(one) : Object.values(tags.reduce((a, t) => ((a[t.tag] = a[t.tag] || []).push(t), a), {})).every((same) => same.some(one));
 }
+// --realistic: what a real Zabbix server stores. Items are not polled on the minute: every item has its own phase (the poller
+// spreads them), and a few polls are missed (timeouts), so two series over the same 15 minutes rarely have the same number of points.
+const PHASE = flags.includes('--realistic') || flags.includes('--phase');   // own poll phase per item
+const MISSES = flags.includes('--realistic') || flags.includes('--misses'); // a few polls missed
+const phase = (it) => (Number(it.itemid) * 7919) % 60;
+const missed = (it, c) => ((Number(it.itemid) * 31 + Math.floor(c / 60) * 17) % 23) === 0;
 function series(it, from, till, step = 60) {
-  const out = []; for (let c = Math.ceil(from / step) * step; c <= till; c += step) { const v = it.gen(c); if (v !== null) out.push({ itemid: it.itemid, clock: String(c), value: String(v), ns: '0' }); } return out;
+  const out = [];
+  if ((PHASE || MISSES) && step === 60) { const ph = PHASE ? phase(it) : 0; for (let c = Math.ceil((from - ph) / step) * step + ph; c <= till; c += step) { if (MISSES && missed(it, c)) continue; const v = it.gen(c); if (v !== null) out.push({ itemid: it.itemid, clock: String(c), value: String(v), ns: '0' }); } return out; }
+  for (let c = Math.ceil(from / step) * step; c <= till; c += step) { const v = it.gen(c); if (v !== null) out.push({ itemid: it.itemid, clock: String(c), value: String(v), ns: '0' }); } return out;
 }
 
 const sessions = new Set(); const calls = []; const ignoredNull = new Set();
 createServer((req, res) => {
   let b = ''; req.on('data', (c) => (b += c)).on('end', () => {
     if (req.url === '/__calls') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(calls)); return; }
+    if (req.url === '/__truth') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(truth)); return; }
     if (req.url === '/__ignored') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify([...ignoredNull])); return; }
     let q; try { q = JSON.parse(b); } catch { res.writeHead(200); res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error.', data: 'Invalid JSON.' }, id: null })); return; }
     const p = q.params || {}; calls.push({ method: q.method, params: Object.keys(p), raw: q.params });
@@ -198,6 +266,7 @@ createServer((req, res) => {
         if (p.countOutput) return ok(String(its.length));
         if (p.sortfield) its = its.sort((a, c) => String(a[[].concat(p.sortfield)[0]]).localeCompare(String(c[[].concat(p.sortfield)[0]])));
         const now = Math.floor(Date.now() / 1000);
+        calls[calls.length - 1].rows = its.length;   // (evidence: how many items one item.get hands back)
         return ok(its.map((i) => ({ ...pick({ ...strip(i), ...(i.gen(now - 30) === null ? { lastclock: '0', lastvalue: '0' } : { lastclock: String(now - 30), lastvalue: String(i.gen(now - 30)) }) }, p.output), ...(p.selectTags ? { tags: i.tags } : {}),
           ...(p.selectHosts ? { hosts: [pick(strip(hosts.find((h) => h.hostid === i.hostid)), p.selectHosts)] } : {}) })));
       }
