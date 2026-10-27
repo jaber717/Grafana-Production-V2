@@ -1,0 +1,5 @@
+== 10. unit tests
+[PASS] unit tests pass (40)
+== 12. release 2.0: environment parser, shell lint, simulated RHEL host
+[PASS] simulated RHEL 9.8 host: 89 PASS, 0 FAIL, 1 isolation check  (SIMULATION ONLY)
+RELEASE GATE: PASS (0 skipped)

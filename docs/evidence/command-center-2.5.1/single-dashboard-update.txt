@@ -1,0 +1,81 @@
+install.sh --command-center on the TEST VM (Grafana 13.2.3 + plugin 6.8.0, AlmaLinux 9.8; Zabbix = SIMULATED API; OS release forced to rhel, TEST ONLY)
+Harness: tests/noc/single-dashboard-update.sh. Two other managed dashboards were edited by hand before the run (drift).
+
+== setup: Grafana holds the 2.4.0 Command Center (today's production state), and two OTHER managed dashboards have drifted from the repository
+   Command Center before: sha/version/url = 36e4b81f184b90be 15 /d/noc-command-center/noc-e28094-command-center
+== for contrast: what the general --dashboards step would do (apply.mjs --dry-run, nothing written)
+   updated   dashboard noc-command-center
+   updated   dashboard noc-device-health
+   updated   dashboard noc-wan-overview
+   would apply: 0 created, 3 updated, 8 unchanged, 0 refused, 1 skipped
+[PASS] the dry run wrote nothing
+
+== run 1: install.sh --command-center
+log: /var/log/grafana-platform/command-center-20261027-162534.log
+
+== NOC — Command Center only (release 2.5.0; Grafana is not reinstalled or restarted, nothing else is imported)
+    Grafana 13.2.3 at http://10.20.8.27:3000
+    read       9 other dashboards, 1 data sources, 17 plugins fingerprinted
+    read       Zabbix data source dg2evelbngb9cb "Zabbix Production" exists (read only, never modified)
+    backup     /var/lib/grafana-platform/backups/command-center/noc-command-center-v15-20261027T162534Z.json
+    updated    noc-command-center v15 -> v16
+    verified   uid noc-command-center, URL /d/noc-command-center/noc-e28094-command-center, 9 panels, folder noc
+    verified   every other dashboard (uid, version, folder, content), every data source and every plugin is identical to before
+    
+    updated: noc-command-center; nothing else changed
+
+== run 2 (rerun): install.sh --command-center
+log: /var/log/grafana-platform/command-center-20261027-162535.log
+
+== NOC — Command Center only (release 2.5.0; Grafana is not reinstalled or restarted, nothing else is imported)
+    Grafana 13.2.3 at http://10.20.8.27:3000
+    read       9 other dashboards, 1 data sources, 17 plugins fingerprinted
+    read       Zabbix data source dg2evelbngb9cb "Zabbix Production" exists (read only, never modified)
+    unchanged  noc-command-center already equals this release (no backup, no write, version stays v16)
+    verified   uid noc-command-center, URL /d/noc-command-center/noc-e28094-command-center, 9 panels, folder noc
+    verified   every other dashboard (uid, version, folder, content), every data source and every plugin is identical to before
+    
+    unchanged: noc-command-center; nothing else changed
+
+== checks (state read independently through the Grafana API)
+[PASS] every other dashboard (uid, version, folder, URL, full JSON hash without id/version, plus version), every data source (full definition + version) and every plugin: IDENTICAL after run 1
+[PASS] …and after the rerun
+[PASS] the two drifted dashboards (noc-device-health, noc-wan-overview) were NOT reset to the repository; a general --dashboards run would have rewritten them
+[PASS] Command Center changed once: v15 -> v16
+[PASS] uid and URL preserved: /d/noc-command-center/noc-e28094-command-center
+[PASS] rerun is idempotent: no write, version stays v16
+[PASS] rerun said 'unchanged' and made no backup
+[PASS] exactly one backup exists after run 1 + rerun
+   backup file: /var/lib/grafana-platform/backups/command-center/noc-command-center-v15-20261027T162534Z.json (600 root, dir 700)
+[PASS] the backup holds the previous Command Center exactly (content hash equals the one read before the update)
+[PASS] Grafana not restarted (MainPID=25 ActiveEnterTimestamp=Tue 2026-10-27 16:24:27 UTC )
+
+== refusals: nothing is written when the update cannot be done safely
+   refused    the Zabbix data source doesnotexist does not exist in Grafana
+   
+   Nothing was written to Grafana.
+   exit=3
+   refused    the Command Center would be deployed as "pending" (Zabbix not connected yet (ZABBIX_ENABLED=no); connect it: sudo grafana-platform setup --zabbix); keep the working one - fix the cause first
+   
+   Nothing was written to Grafana.
+   exit=3
+[PASS] both refusals (missing Zabbix data source / Zabbix disabled) left Grafana byte-identical
+
+== rollback with the backup, then update again
+    backup     /var/lib/grafana-platform/backups/command-center/noc-command-center-v16-20261027T162539Z.json
+    updated    noc-command-center v16 -> v17
+    verified   uid noc-command-center, URL /d/noc-command-center/noc-e28094-command-center, 9 panels, folder noc
+    verified   every other dashboard (uid, version, folder, content), every data source and every plugin is identical to before
+    updated: noc-command-center; nothing else changed
+[PASS] restore put the previous Command Center back (content hash equals the original)
+[PASS] restore touched nothing else
+    backup     /var/lib/grafana-platform/backups/command-center/noc-command-center-v17-20261027T162540Z.json
+    updated    noc-command-center v17 -> v18
+    verified   uid noc-command-center, URL /d/noc-command-center/noc-e28094-command-center, 9 panels, folder noc
+    verified   every other dashboard (uid, version, folder, content), every data source and every plugin is identical to before
+    updated: noc-command-center; nothing else changed
+[PASS] update after restore gives the 2.5.0 Command Center again
+[PASS] final state: every other object still identical to the start
+[PASS] Grafana still not restarted
+
+SINGLE-DASHBOARD UPDATE: 0 failure(s)

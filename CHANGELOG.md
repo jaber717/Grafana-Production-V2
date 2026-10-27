@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.5.1] - 2026-10-27
+
+**Strict single-dashboard update for the Command Center** (dashboard content identical to 2.5.0).
+
+### Added
+* `sudo ./install.sh --command-center` (tool: `scripts/update-command-center.mjs`): updates **only** the dashboard uid `noc-command-center`
+  through the Grafana API. It asks nothing, writes no platform setting, deploys no release, imports no other dashboard / folder / data source /
+  playlist, does not touch plugins, `grafana.ini` or provisioning, and cannot restart Grafana. Before replacing the dashboard it saves the current
+  JSON to `/var/lib/grafana-platform/backups/command-center/` (mode 0600, read back and checked, newest 20 kept). The write uses the live version
+  number (a concurrent edit makes it fail instead of overwriting). Rerun: "unchanged", no backup, no new version. It fingerprints every other
+  dashboard (uid, version, folder, content), every data source and every plugin before and after and exits 4 if anything differs. Refuses
+  (nothing written) when Zabbix is not connected, the Zabbix data source or the NOC folder is missing, or the result would be a "setup incomplete" notice.
+  Uid, folder and URL (`/d/noc-command-center/...`) are preserved. Rollback: `sudo GP_RESTORE_FILE=<backup file> ./install.sh --command-center`.
+* `tests/noc/single-dashboard-update.sh`: the proof on the test VM (17 checks), see `docs/evidence/command-center-2.5.1/`.
+
+### Why not `--dashboards`
+* On a Grafana where other managed dashboards were edited by hand, `--dashboards` rewrites them back to the repository (shown by a dry run in the
+  evidence: 3 dashboards "updated" for 1 intended) and asks the host-group question. `--command-center` does neither.
+
 ## [2.5.0] - 2026-10-27
 
 **NOC — Command Center: status, CPU/memory and sorting fixed** (same dashboard, uid `noc-command-center`; no other dashboard, data source or

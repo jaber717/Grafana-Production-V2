@@ -132,23 +132,33 @@ selection, raise `memory_limit` of the Zabbix frontend's PHP-FPM pool (for examp
 A device is listed when Zabbix has at least one of the availability, CPU or memory items for it. A device with none of them is not listed:
 give it the ICMP Ping template.
 
-## Install / update
-
-The installer's dashboards step creates it; nothing else changes (Grafana is not reinstalled or restarted, data sources, credentials,
-firewall and the other dashboards are untouched; re-running finds it "unchanged"):
+## Install / update (this dashboard only)
 
 ```bash
-curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Grafana-Production-V2/tar.gz/refs/heads/main | tar xz -C /root && sudo /root/Grafana-Production-V2-main/install.sh --dashboards
+curl -fsSL -x http://172.20.129.10:8080 https://codeload.github.com/jaber717/Grafana-Production-V2/tar.gz/refs/heads/main | tar xz -C /root && /root/Grafana-Production-V2-main/install.sh --command-center
 ```
 
-The step shows your saved host-group choice for Router / Switch / Firewall and asks once to keep it: press **Enter**.
+This updates **only** the dashboard `noc-command-center`, through the Grafana API. No question is asked. It does not touch the other
+dashboards, folders, data sources, plugins, `grafana.ini`, provisioning, playlists or the platform settings, and Grafana is not restarted.
+The uid and the address `/d/noc-command-center/...` stay the same.
+
+* **Backup first**: the current dashboard JSON is saved to `/var/lib/grafana-platform/backups/command-center/noc-command-center-v<N>-<time>.json`
+  (root only) before it is replaced.
+* **Rerun is safe**: when the dashboard already equals the release it says `unchanged`; no backup, no write, no new version.
+* **Proof on every run**: the tool fingerprints every other dashboard (uid, version, folder, content), every data source and every plugin before and
+  after, and prints `every other dashboard ... is identical to before` (exit code 4 and the differences if not).
+* **It refuses** (and writes nothing) if Zabbix is not connected, the Zabbix data source or the NOC folder is missing, or the dashboard could only be
+  deployed with a "setup incomplete" notice. Then the working dashboard stays as it is.
+* **Roll back**: `GP_RESTORE_FILE=<backup file> /root/Grafana-Production-V2-main/install.sh --command-center` (run as root) puts that backup back.
+* It uses the host groups saved earlier for Device Type (`NOC_GROUPS_*`); to change them use `sudo grafana-platform setup --dashboards`, which is the
+  general step that imports all dashboards.
 
 To customise the wallboard, use **Save as** in Grafana (a copy under a new name): the dashboard with uid `noc-command-center` is managed
 by the installer and is reset to the release version when the dashboards step runs again.
 
 ## Tested, and what is left to confirm on your Zabbix
 
-**Real:** Grafana 13.2.3 and Zabbix plugin 6.8.0 on AlmaLinux 9.8 (RHEL 9 rebuild), driven by a real browser, deployed by `install.sh --dashboards`.
+**Real:** Grafana 13.2.3 and Zabbix plugin 6.8.0 on AlmaLinux 9.8 (RHEL 9 rebuild), driven by a real browser, deployed by `install.sh --command-center` (the 2.5.0 browser runs used `--dashboards`; same dashboard content).
 **Simulated:** the Zabbix server. `tests/noc/zabbix7-api.mjs` is a stand-in of the Zabbix 7.0 API (strict parameter checks, per-item poll phases and
 missed polls with `--realistic`). **No test in this release ran against a real Zabbix server, and nothing ran on production.**
 
@@ -157,7 +167,7 @@ missed polls with `--realistic`). **No test in this release ran against a real Z
 | `tests/noc/ui-matrix.py --bulk`: 26-device rule matrix (ICMP/SNMP/agent up/down/unknown, stale, ICMP vs SNMP vs agent conflicts, CPU-only, Cisco / Huawei / Fortinet / Palo Alto / untagged Gigamon naming, idle/free inversion, bytes and per-core only, multi-CPU/pool, out-of-range, no metrics), 9 / 30 / 100 devices, selection change, 30 s auto-refresh keeps the order | 57 / 57 |
 | `tests/noc/ui-command-center.py` (24-device fleet, pickers, type filter, bookmark, refresh, drill-down) | 118 / 118 |
 | `tests/unit` (item-name rules accepted/rejected, weights, sort) | 40 / 40 |
-| `install.sh --dashboards` 2.4.0 → 2.5.0, then again | 1 updated, then 0 updated; other dashboards byte-identical, data source untouched, Grafana not restarted |
+| `install.sh --command-center` 2.4.0 → 2.5.1, rerun, refusals, rollback (`tests/noc/single-dashboard-update.sh`; two other dashboards deliberately edited by hand beforehand) | 17 / 17: only `noc-command-center` changed (v→v+1); every other dashboard, data source and plugin identical; backup equals the previous JSON; rerun writes nothing; Grafana not restarted |
 | release gate (includes the simulated installer, 89 checks) | PASS |
 
 Evidence: [evidence/command-center-2.5.0/](evidence/command-center-2.5.0/). Limits of this evidence: it does not show how *your* templates
