@@ -245,7 +245,7 @@ check "plugins extracted from the bundle after SHA-256 check" 'out_has "plugin a
 check "Zabbix datasource created over HTTP and its health check logs in for real" 'out_has "created +datasource zabbix-lab" && out_has "health: OK Zabbix API login OK"'
 check "ClickHouse datasource and playlist skipped; the 5 NetFlow dashboards ARE deployed, each with a notice panel" 'out_has "skipped +datasource netflow-clickhouse" && out_has "note +netflow-overview: deployed with a notice panel" && out_has "skipped +playlist" && has_notice mgf netflow-overview'
 check "NOC dashboards deployed complete WITHOUT any item map: no notice, no item id, Device Type/Device/Interface variables" 'out_has "created +dashboard noc-device-health" && ! has_notice mgf noc-device-health && no_item_ids mgf noc-device-health && no_item_ids mgf noc-wan-overview && mgf /api/dashboards/uid/noc-device-health | grep -q "\"queryType\":\"itemTag\""'
-check "mock Grafana holds 1 datasource and all 8 dashboards (no empty folder)" '[ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ] && mgf /api/datasources/uid/zabbix-lab | grep -q "\"url\":\"$ZBX_URL\"" && [ "$(mgf /api/datasources/uid/netflow-clickhouse | grep -c uid)" = 0 ]'
+check "mock Grafana holds 1 datasource and all 9 dashboards (no empty folder)" '[ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 9 ] && mgf /api/datasources/uid/zabbix-lab | grep -q "\"url\":\"$ZBX_URL\"" && [ "$(mgf /api/datasources/uid/netflow-clickhouse | grep -c uid)" = 0 ]'
 check "release deployed with its bundle; command linked" '[ -L /usr/local/sbin/grafana-platform ] && [ -f "$W/sys/opt/grafana-platform/releases/$VER/bundle/SHA256SUMS" ]'
 check "the bundled RPM is cached for rollbacks" 'ls "$W/sys/backups/rpm/"grafana-*.rpm >/dev/null 2>&1'
 
@@ -290,7 +290,7 @@ gp preflight --env-file "$ENVF"; rc=$?
 check "a partial LAB item map no longer blocks anything, even with ALLOW_NOC_WITHOUT_ITEM_MAP=no (rc=$rc)" '[ $rc = 0 ] && out_lacks "item map misses"'
 gp config set ALLOW_NOC_WITHOUT_ITEM_MAP=yes --env-file "$ENVF"
 gp install --env-file "$ENVF"; rc=$?
-check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards complete, no item id (rc=$rc)" '[ $rc = 0 ] && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ] && ! has_notice mgf noc-wan-overview && no_item_ids mgf noc-wan-overview'
+check "partial map + ALLOW_NOC_WITHOUT_ITEM_MAP=yes -> installs; NOC dashboards complete, no item id (rc=$rc)" '[ $rc = 0 ] && [ "$(mgf /api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 9 ] && ! has_notice mgf noc-wan-overview && no_item_ids mgf noc-wan-overview'
 
 section "2.0 repo mode on an isolated host: one FAIL, with the way out"
 reset_host
@@ -396,7 +396,7 @@ check "package, service, firewall rules, release and command link are gone" '! g
 check "configuration and secrets are kept" '[ -f /etc/grafana-platform/platform.env ] && [ -f /etc/grafana-platform/secrets/zabbix-password ]'
 dgp bin/grafana-platform install; rc=$?
 check "reinstall from the unpacked release with the kept configuration (rc=$rc), no prompts, no --env-file" '[ $rc = 0 ] && out_has "INSTALL: [0-9]+ PASS, [0-9]+ WARN, 0 FAIL"'
-check "reinstalled state is complete again: 8 dashboards" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 8 ]'
+check "reinstalled state is complete again: 9 dashboards" '[ "$(curl -s -u "admin:$(cat "$W/admin.pw")" http://127.0.0.1:$GF_PORT/api/search | python3 -c "import json,sys;print(len(json.load(sys.stdin)))")" = 9 ]'
 dgp grafana-platform uninstall --yes --purge; rc=$?
 check "uninstall --purge (rc=$rc) removes configuration, secrets and data" '[ $rc = 0 ] && [ ! -e /etc/grafana-platform ] && [ ! -e "$W/sys/var/lib/grafana" ] && [ ! -e "$W/sys/etc/grafana" ]'
 

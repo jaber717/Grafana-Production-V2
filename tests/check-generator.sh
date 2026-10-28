@@ -16,8 +16,8 @@ const a=JSON.parse(fs.readFileSync(process.argv[1],"utf8")),b=JSON.parse(fs.read
 process.exit(norm(a)===norm(b)?0:1);' "$f" "dashboards/netflow/$n" && echo "[PASS] $n reproduced" || { echo "[FAIL] $n differs"; FAIL=1; }
 done
 # NOC: each Python generator writes into <its repo>/dashboards/noc; run them in a scratch copy and compare byte for byte
-mkdir -p "$T/noc/tools" "$T/noc/dashboards/noc"; cp tools/build-noc-dashboards.py tools/build-noc-command-center.py "$T/noc/tools/"
-for g in build-noc-dashboards.py build-noc-command-center.py; do (cd "$T/noc" && python3 "tools/$g" >/dev/null) || { echo "[FAIL] $g crashed"; FAIL=1; }; done
+mkdir -p "$T/noc/tools" "$T/noc/dashboards/noc"; cp tools/build-noc-dashboards.py tools/build-noc-command-center.py tools/build-noc-network-traffic.py "$T/noc/tools/"
+for g in build-noc-dashboards.py build-noc-command-center.py build-noc-network-traffic.py; do (cd "$T/noc" && python3 "tools/$g" >/dev/null) || { echo "[FAIL] $g crashed"; FAIL=1; }; done
 for f in dashboards/noc/*.json; do
   cmp -s "$f" "$T/noc/$f" && echo "[PASS] $(basename "$f") reproduced" || { echo "[FAIL] $(basename "$f") differs from its generator's output"; FAIL=1; }
 done

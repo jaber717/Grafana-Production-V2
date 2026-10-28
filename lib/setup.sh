@@ -5,6 +5,7 @@
 #   sudo ./install.sh                 again: shows the current settings, Enter keeps them -> safe re-run (repairs, changes nothing that matches)
 #   sudo ./install.sh --zabbix        add or change only the Zabbix connection (and its NOC dashboards)
 #   sudo ./install.sh --command-center  update ONLY the dashboard NOC — Command Center (uid noc-command-center); backs it up first
+#   sudo ./install.sh --network-traffic  same, for the dashboard NOC — Network Traffic (uid noc-network-traffic; created when missing)
 #   sudo ./install.sh --dashboards    (re)import all dashboards into the running Grafana; no reinstall, no restart
 #   sudo ./install.sh --clickhouse    add or change only the ClickHouse/Akvorado connection (and its NetFlow dashboards)
 #   sudo ./install.sh --yes           non-interactive re-run with the saved settings (automation)
@@ -183,9 +184,10 @@ cmd_setup() {
   require_root
   exec 3<&0; exec 0</dev/null     # answers come from fd 3; nothing else may consume them
   [ -t 3 ] && SETUP_TTY=1
-  local only="" x; for x in "${OPT_ARGS[@]+"${OPT_ARGS[@]}"}"; do case "$x" in --zabbix) only=zabbix ;; --clickhouse) only=clickhouse ;; --reconfigure) only=all ;; --dashboards) only=dashboards ;; --command-center) only=command-center ;; *) die "unknown option $x (use --zabbix, --clickhouse, --dashboards, --command-center, --reconfigure, --yes)" ;; esac; done
+  local only="" x; for x in "${OPT_ARGS[@]+"${OPT_ARGS[@]}"}"; do case "$x" in --zabbix) only=zabbix ;; --clickhouse) only=clickhouse ;; --reconfigure) only=all ;; --dashboards) only=dashboards ;; --command-center) only=command-center ;; --network-traffic) only=network-traffic ;; *) die "unknown option $x (use --zabbix, --clickhouse, --dashboards, --command-center, --network-traffic, --reconfigure, --yes)" ;; esac; done
   if [ "$only" = dashboards ]; then setup_dashboards_only; return; fi
-  if [ "$only" = command-center ]; then setup_command_center_only; return; fi
+  if [ "$only" = command-center ]; then setup_command_center_only noc-command-center; return; fi
+  if [ "$only" = network-traffic ]; then setup_command_center_only noc-network-traffic; return; fi
   printf '\nGrafana platform %s — setup\n' "$(cat "$RELEASE_DIR/VERSION")" >&2
   install -d -m 0755 "$ETC"
   local fresh=1; [ -f "$ENV_INSTALLED" ] && fresh=0; SETUP_FRESH=$fresh
@@ -331,13 +333,14 @@ setup_dashboards_only() {
 # Unlike --dashboards it asks nothing, writes no platform setting, deploys no release (the tool runs from this unpacked directory), and
 # imports no other dashboard, folder, data source, playlist or plugin. The tool backs the current Command Center up before replacing it and
 # proves, through the API, that every other dashboard (uid, version, folder, content), data source and plugin is identical afterwards.
-setup_command_center_only() {
+setup_command_center_only() {   # $1 = the one dashboard uid to update (noc-command-center | noc-network-traffic)
+  local uid=${1:-noc-command-center}
   [ -f "$ENV_INSTALLED" ] || die "Grafana is not installed by this tool yet: run 'sudo ./install.sh' first"
   load_env; log_to_file command-center
-  head1 "NOC — Command Center only (release $(cat "$RELEASE_DIR/VERSION"); Grafana is not reinstalled or restarted, nothing else is imported)"
+  head1 "Dashboard $uid only (release $(cat "$RELEASE_DIR/VERSION"); Grafana is not reinstalled or restarted, nothing else is imported)"
   curl_local -o /dev/null -f "$(base_url)/api/health" || die "Grafana does not answer at $(base_url) — start it first: systemctl start grafana-server"
   local rc=0 out; out=$(mktemp)
-  run_content_tool update-command-center --backup-dir "${GP_BACKUP_DIR:-/var/lib/grafana-platform/backups/command-center}" ${GP_RESTORE_FILE:+--restore "$GP_RESTORE_FILE"} >"$out" 2>&1 || rc=$?
+  run_content_tool update-command-center --uid "$uid" --backup-dir "${GP_BACKUP_DIR:-/var/lib/grafana-platform/backups/command-center}" ${GP_RESTORE_FILE:+--restore "$GP_RESTORE_FILE"} >"$out" 2>&1 || rc=$?
   sed 's/^/    /' "$out" >&2; rm -f "$out"
   [ "$rc" = 0 ] || die "Command Center update did not complete cleanly (exit $rc, see above). Roll back with the backup named above: sudo GP_RESTORE_FILE=<that file> $RELEASE_DIR/install.sh --command-center"
 }

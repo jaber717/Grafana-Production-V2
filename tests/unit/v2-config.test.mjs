@@ -199,7 +199,7 @@ test('NOC — Command Center: new uid in the NOC folder, multi-device selection,
   const cc = repoDashboards().find((d) => d.dashboard.uid === 'noc-command-center');
   assert.ok(cc, 'dashboards/noc/noc-command-center.json'); assert.equal(cc.folderDir, 'noc');
   const others = repoDashboards().filter((d) => d.folderDir === 'noc' && d.dashboard.uid !== 'noc-command-center').map((d) => d.dashboard.uid).sort();
-  assert.deepEqual(others, ['noc-device-health', 'noc-wan-overview'], 'the existing NOC dashboards stay as they are');
+  assert.deepEqual(others, ['noc-device-health', 'noc-network-traffic', 'noc-wan-overview'], 'the existing NOC dashboards stay as they are');
   assert.ok(!others.includes(cc.dashboard.uid) && !repoDashboards().some((d) => d.dashboard.uid !== cc.dashboard.uid && d.dashboard.title === cc.dashboard.title), 'distinct uid and title');
   const D = cc.dashboard;
   assert.equal(D.refresh, '30s');

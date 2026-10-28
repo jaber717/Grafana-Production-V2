@@ -1,5 +1,5 @@
-// Updates ONE dashboard - "NOC — Command Center" (uid noc-command-center) - in a running Grafana, through its HTTP API, and nothing else.
-//   node scripts/update-command-center.mjs --env-file F --backup-dir D [--dry-run]
+// Updates ONE dashboard - "NOC — Command Center" (uid noc-command-center, the default) or "NOC — Network Traffic" (--uid noc-network-traffic) - in a running Grafana, through its HTTP API, and nothing else.
+//   node scripts/update-command-center.mjs --env-file F --backup-dir D [--uid noc-command-center|noc-network-traffic] [--dry-run]
 //   node scripts/update-command-center.mjs --env-file F --backup-dir D --restore <backup file>
 //
 // What it does, in this order:
@@ -20,8 +20,11 @@ import { api, get, URL_, parseArgs, normalizeDashboard, canonical, sha256, stamp
 import { loadContext, effectiveDashboards } from './lib/content.mjs';
 import { adoptedZabbixUid } from './lib/envcfg.mjs';
 
-const UID = 'noc-command-center';
+// the dashboards this tool may update, one per run (never more): chosen with --uid, default the Command Center
+const ALLOWED = ['noc-command-center', 'noc-network-traffic'];
 const args = parseArgs(process.argv.slice(2));
+const UID = args.uid || 'noc-command-center';
+if (!ALLOWED.includes(UID)) { console.error(`ERROR: --uid must be one of ${ALLOWED.join(', ')}`); process.exit(2); }
 const DRY = !!args['dry-run'];
 const BACKUPS = resolve(args['backup-dir'] || 'backups/command-center');
 const say = (k, m) => console.log(`${k.padEnd(10)} ${m}`);
@@ -78,7 +81,7 @@ if (args.restore) {
   const CTX = loadContext(args);
   const cand = effectiveDashboards(CTX).find((d) => d.dashboard.uid === UID);
   if (!cand) stop(`this release has no dashboard ${UID}`);
-  if (cand.state !== 'ok') stop(`the Command Center would be deployed as "${cand.state}" (${cand.reason}); keep the working one - fix the cause first`);
+  if (cand.state !== 'ok') stop(`the dashboard would be deployed as "${cand.state}" (${cand.reason}); keep the working one - fix the cause first`);
   const adopted = adoptedZabbixUid(CTX.env);
   const dsUid = adopted || 'zabbix-lab';
   const ds = await get(`/api/datasources/uid/${dsUid}`, { allow404: true });
@@ -110,7 +113,7 @@ if (!cur) {
 let problems = [];
 if (!DRY) {
   const now = await get(`/api/dashboards/uid/${UID}`);
-  if (canonical(normalizeDashboard(now.dashboard)) !== canonical(normalizeDashboard(want))) problems.push('the Command Center in Grafana differs from what was written');
+  if (canonical(normalizeDashboard(now.dashboard)) !== canonical(normalizeDashboard(want))) problems.push('the dashboard in Grafana differs from what was written');
   if (cur && now.meta.url !== cur.meta.url) problems.push(`URL changed: ${cur.meta.url} -> ${now.meta.url}`);
   say('verified', `uid ${UID}, URL ${now.meta.url}, ${now.dashboard.panels.length} panels, folder ${now.meta.folderUid}`);
 }

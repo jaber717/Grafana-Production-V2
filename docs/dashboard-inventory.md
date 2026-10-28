@@ -11,6 +11,7 @@
 | netflow | `netflow-top-talkers` | NetFlow | Top Talkers | 13 | 9 | 1m | now-1h to now | NetFlow ClickHouse |
 | noc | `noc-command-center` | NOC — Command Center | 9 | 2 | 30s | now-6h to now | Zabbix LAB |
 | noc | `noc-device-health` | NOC — Device Health | 12 | 3 | 1m | now-6h to now | Zabbix LAB |
+| noc | `noc-network-traffic` | NOC — Network Traffic | 14 | 3 | 30s | now-3h to now | Zabbix LAB |
 | noc | `noc-wan-overview` | NOC — Network Overview | 5 | 1 | 1m | now-6h to now | Zabbix LAB |
 
 ## NetFlow | ASN & Internet (`netflow-asn`, folder netflow)
@@ -155,6 +156,29 @@ Tags: noc, netops, device-health. Variables: `devtype`, `device`, `interface`.
 | Interface status | table |
 | Interface traffic (bits/s) | timeseries |
 | Interface errors and discards | timeseries |
+
+## NOC — Network Traffic (`noc-network-traffic`, folder noc)
+
+Interface traffic wallboard for any routers, switches and firewalls: choose Device Type, Devices and Interfaces at the top (kept in the URL). Inbound/outbound traffic, utilization, interface status, errors and discards — all read from Zabbix (host groups, interface discovery tags, item names); nothing is hardcoded.
+
+Tags: noc, netops, traffic. Variables: `devtype`, `device`, `interface`.
+
+| Panel | Type |
+|---|---|
+| Total inbound | stat |
+| Total outbound | stat |
+| Interfaces | stat |
+| Interfaces UP | stat |
+| Interfaces DOWN | stat |
+| Total traffic — inbound and outbound | timeseries |
+| Top 10 busiest interface directions | bargauge |
+| Top 10 utilization — inbound | bargauge |
+| Top 10 utilization — outbound | bargauge |
+| Inbound by interface — top 10 | timeseries |
+| Outbound by interface — top 10 | timeseries |
+| Errors and discards — top 10 | timeseries |
+| Interfaces DOWN — selected | table |
+| Interfaces — detail | table |
 
 ## NOC — Network Overview (`noc-wan-overview`, folder noc)
 
